@@ -40,7 +40,7 @@ export function Login() {
 
   return (
     <main className="welcome">
-      <div className="welcome-card paper tone-0 taped">
+      <div className="welcome-card paper tone-0">
         <h1 className="brand-big">Onthousels</h1>
         <p className="welcome-line">A quiet place for the things you want to keep.</p>
 

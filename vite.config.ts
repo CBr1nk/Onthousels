@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const paper = '#efe6d8'
+const paper = '#eceeea'
 const year = 60 * 60 * 24 * 365
 
 export default defineConfig({
@@ -16,7 +16,7 @@ export default defineConfig({
       manifest: {
         name: 'Onthousels',
         short_name: 'Onthousels',
-        description: 'A quiet notes app: a collage of paper notes on a linen desk.',
+        description: 'A quiet notes app: notes on tracing paper over a drafting grid.',
         start_url: '/',
         scope: '/',
         display: 'standalone',

@@ -1,6 +1,6 @@
 # Onthousels
 
-A quiet notes app: a collage of paper notes on a linen desk. Notes have an optional title and either free text or checkboxes, with bold and italic. Labels file related notes together, and there's a daylight and a lamplight theme. You sign in with an email and password.
+A quiet notes app: notes on tracing paper laid over a drafting grid, lettered by hand. Notes have an optional title and either free text or checkboxes, with bold and italic. A to-do list stays pinned at the top, labels file related notes together, and there's a light and a dark theme. You sign in with an email and password.
 
 React + Vite + TypeScript, Supabase (Postgres, Auth), TipTap editor.
 
@@ -47,6 +47,8 @@ The app icons in `public/` are generated from `public/favicon.svg`. After changi
 - **Text ↔ checkboxes**: the *Text / List* switch converts each line into a checkbox and back. Formatting survives the switch. Tick state is dropped when going back to text.
 - **Formatting**: Ctrl/⌘+B and Ctrl/⌘+I, or the B and I buttons (useful on phones). Ctrl+U for underline also works.
 - **Labels**: the tag button in a note finds or creates labels. The sidebar filters by label, and *Edit* renames or deletes them. Deleting a label keeps its notes. A new note started while you're viewing a label gets that label.
+- **To do**: one checklist is always pinned at the top. Tick items straight from it, tap it to add or edit items, and use *Clear done* to sweep away ticked items (with undo). It can't be deleted, and it isn't counted among your notes.
+- **Text / Lists filter**: the *All · Text · Lists* switch above the notes shows only text notes, only checklists, or both. It remembers your choice on that device.
 - **Collage**: notes sit newest-first and stay in place when you edit them, so the desk doesn't reshuffle under you. You can tick checkboxes straight from a card.
 - **Deleting**: use the trash icon on a card (on hover) or in the editor. You can undo for a few seconds afterwards.
 - **Sync**: the app reloads your notes when you come back to the tab, so changes made on another device show up.
@@ -68,10 +70,11 @@ src/
   components/
     Home.tsx            top bar, collage, editor orchestration
     NoteCard.tsx        a note on the desk
+    PinnedTodo.tsx      the to-do list pinned above the collage
     NoteRenderer.tsx    renders note JSON safely (no innerHTML)
     NoteEditor.tsx      TipTap editor sheet (lazy-loaded)
     LabelPicker.tsx     find/create/toggle labels in a note
     Sidebar.tsx         label filter + label management + sign out
-  styles.css            all the paper, linen and lamplight
+  styles.css            the drafting grid, tracing paper and hand lettering
 supabase/schema.sql
 ```

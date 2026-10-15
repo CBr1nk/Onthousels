@@ -48,6 +48,8 @@ export interface CloseInfo {
 interface Props {
   initial: NoteDraft
   isNew: boolean
+  /** The pinned to-do list: always a checklist, never deleted or labelled. */
+  pinned?: boolean
   editedAt?: string
   labelIds: string[]
   labels: Label[]
@@ -61,7 +63,7 @@ interface Props {
 const editedFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 
 export function NoteEditor(props: Props) {
-  const { initial, isNew, editedAt, labelIds, labels } = props
+  const { initial, isNew, pinned, editedAt, labelIds, labels } = props
   const cb = useRef(props)
   cb.current = props
 
@@ -117,6 +119,7 @@ export function NoteEditor(props: Props) {
 
   // "#ideas" in the body files the note under that label, making the label if needed.
   const addTag = async (name: string) => {
+    if (cb.current.pinned) return
     const label = await cb.current.onCreateLabel(name)
     if (label && !cb.current.labelIds.includes(label.id)) toggleLabel(label.id, true)
   }
@@ -202,23 +205,27 @@ export function NoteEditor(props: Props) {
     >
       <div className="sheet paper tone-0" ref={sheetRef} tabIndex={-1}>
         <div className="sheet-scroll">
-          <input
-            className="sheet-title"
-            placeholder="Title"
-            value={title}
-            maxLength={200}
-            onChange={e => {
-              setTitle(e.target.value)
-              titleRef.current = e.target.value
-              touch()
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.shiftKey)) {
-                e.preventDefault()
-                editor?.commands.focus('start')
-              }
-            }}
-          />
+          {pinned ? (
+            <h2 className="sheet-title">To do</h2>
+          ) : (
+            <input
+              className="sheet-title"
+              placeholder="Title"
+              value={title}
+              maxLength={200}
+              onChange={e => {
+                setTitle(e.target.value)
+                titleRef.current = e.target.value
+                touch()
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.shiftKey)) {
+                  e.preventDefault()
+                  editor?.commands.focus('start')
+                }
+              }}
+            />
+          )}
           <EditorContent editor={editor} className={`sheet-body mode-${mode}`} />
           {(selectedLabels.length > 0 || editedAt) && (
             <div className="sheet-meta">
@@ -235,18 +242,28 @@ export function NoteEditor(props: Props) {
         </div>
 
         <div className="sheet-tools" role="toolbar" aria-label="Note tools">
-          <div className="segmented" role="radiogroup" aria-label="Note type">
-            <button type="button" role="radio" aria-checked={mode === 'text'} title="Text" onClick={() => switchMode('text')}>
-              <TextIcon size={18} />
-              <span className="hide-sm">Text</span>
-            </button>
-            <button type="button" role="radio" aria-checked={mode === 'checklist'} title="Checkboxes" onClick={() => switchMode('checklist')}>
-              <ChecklistIcon size={18} />
-              <span className="hide-sm">List</span>
-            </button>
-          </div>
+          {!pinned && (
+            <>
+              <div className="segmented" role="radiogroup" aria-label="Note type">
+                <button type="button" role="radio" aria-checked={mode === 'text'} title="Text" onClick={() => switchMode('text')}>
+                  <TextIcon size={18} />
+                  <span className="hide-sm">Text</span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === 'checklist'}
+                  title="Checkboxes"
+                  onClick={() => switchMode('checklist')}
+                >
+                  <ChecklistIcon size={18} />
+                  <span className="hide-sm">List</span>
+                </button>
+              </div>
 
-          <span className="tool-sep" aria-hidden="true" />
+              <span className="tool-sep" aria-hidden="true" />
+            </>
+          )}
 
           <button
             type="button"
@@ -271,31 +288,35 @@ export function NoteEditor(props: Props) {
             <i>I</i>
           </button>
 
-          <div className="anchor">
-            <button
-              type="button"
-              className={`icon-btn${picking ? ' on' : ''}`}
-              title="Labels"
-              aria-label="Labels"
-              aria-expanded={picking}
-              onClick={() => setPicking(p => !p)}
-            >
-              <TagIcon size={19} />
-            </button>
-            {picking && (
-              <LabelPicker
-                labels={labels}
-                selected={labelIds}
-                onToggle={toggleLabel}
-                onCreate={name => cb.current.onCreateLabel(name)}
-                onClose={closePicker}
-              />
-            )}
-          </div>
+          {!pinned && (
+            <>
+              <div className="anchor">
+                <button
+                  type="button"
+                  className={`icon-btn${picking ? ' on' : ''}`}
+                  title="Labels"
+                  aria-label="Labels"
+                  aria-expanded={picking}
+                  onClick={() => setPicking(p => !p)}
+                >
+                  <TagIcon size={19} />
+                </button>
+                {picking && (
+                  <LabelPicker
+                    labels={labels}
+                    selected={labelIds}
+                    onToggle={toggleLabel}
+                    onCreate={name => cb.current.onCreateLabel(name)}
+                    onClose={closePicker}
+                  />
+                )}
+              </div>
 
-          <button type="button" className="icon-btn" title="Delete" aria-label="Delete note" onClick={() => cb.current.onDelete()}>
-            <TrashIcon size={19} />
-          </button>
+              <button type="button" className="icon-btn" title="Delete" aria-label="Delete note" onClick={() => cb.current.onDelete()}>
+                <TrashIcon size={19} />
+              </button>
+            </>
+          )}
 
           <button type="button" className="btn-done" onClick={close}>
             Done

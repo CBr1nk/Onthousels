@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import { hashId } from '../lib/doc'
 import type { Label, Note } from '../lib/types'
 import { TrashIcon } from './Icons'
@@ -13,18 +12,13 @@ interface Props {
 }
 
 export function NoteCard({ note, labelsById, onOpen, onToggleTask, onDelete }: Props) {
-  // Each note gets its own paper stock and a barely-there tilt, stable across visits.
-  const h = hashId(note.id)
-  const style = {
-    '--tilt': `${((h % 9) - 4) * 0.14}deg`,
-  } as CSSProperties
-  const tape = h % 5 === 0
+  // Each note gets its own sheet of tracing paper, stable across visits.
+  const tone = (hashId(note.id) >> 4) % 5
   const labels = note.labelIds.map(id => labelsById.get(id)).filter((l): l is Label => Boolean(l))
 
   return (
     <article
-      className={`card paper tone-${(h >> 4) % 5}${tape ? ' taped' : ''}`}
-      style={style}
+      className={`card paper tone-${tone}`}
       tabIndex={0}
       aria-label={note.title || 'Untitled note'}
       onClick={onOpen}

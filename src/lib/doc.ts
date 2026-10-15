@@ -77,9 +77,27 @@ export function toggleTaskAt(doc: JSONContent, index: number): JSONContent {
   return walk(doc)
 }
 
-/** Small stable hash so each note keeps the same paper tone and tilt across renders. */
+/** Small stable hash so each note keeps the same paper tone across renders. */
 export function hashId(id: string): number {
   let h = 2166136261
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619)
   return h >>> 0
+}
+
+export function countDone(node: JSONContent): number {
+  const self = node.type === 'taskItem' && node.attrs?.checked ? 1 : 0
+  return (node.content ?? []).reduce((sum, child) => sum + countDone(child), self)
+}
+
+/** Drops ticked items, along with anything nested under them. */
+export function withoutDone(doc: JSONContent): JSONContent {
+  const prune = (node: JSONContent): JSONContent | null => {
+    if (node.type === 'taskItem' && node.attrs?.checked) return null
+    if (!node.content) return node
+    const content = node.content.map(prune).filter((n): n is JSONContent => n !== null)
+    if (node.type === 'taskList' && !content.length) return null
+    return { ...node, content }
+  }
+  const next = prune(doc)
+  return next?.content?.length ? next : emptyDoc('checklist')
 }

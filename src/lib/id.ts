@@ -8,3 +8,12 @@ export function uuid(): string {
   const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('')
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
+
+/**
+ * The id of a person's pinned to-do list. It's derived from their own id (each hex digit
+ * flipped), so every device finds the same note without asking the server, and an offline
+ * first edit can't create a second list.
+ */
+export function pinnedTodoId(userId: string): string {
+  return userId.replace(/[0-9a-f]/gi, c => (15 - parseInt(c, 16)).toString(16))
+}

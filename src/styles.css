@@ -3,108 +3,112 @@
 :root {
   color-scheme: light;
 
-  /* Daylight studio: linen desk, cream papers, terracotta ink */
-  --desk: #ebe1cf;
-  --glow: radial-gradient(120% 80% at 15% -10%, rgba(255, 246, 228, 0.75), transparent 60%),
-    radial-gradient(90% 70% at 110% 110%, rgba(196, 160, 118, 0.18), transparent 60%);
-  --tone-0: #fbf7ee; /* cream */
-  --tone-1: #f4ecdb; /* oat */
-  --tone-2: #edefe0; /* sage wash */
-  --tone-3: #f8e8de; /* clay blush */
-  --tone-4: #f6ecd3; /* ochre wash */
-  --ink: #3a2e25;
-  --ink-soft: #6b5a4b;
-  --muted: #9a8775;
-  --line: rgba(58, 46, 37, 0.14);
-  --accent: #b05f38;
-  --accent-ink: #fff8ef;
-  --shadow: 74, 48, 24;
-  --sheen: linear-gradient(172deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 38%);
-  --tape: rgba(212, 178, 118, 0.5);
-  --rule: rgba(150, 112, 80, 0.16);
-  --field: rgba(255, 252, 245, 0.6);
-  --toast-bg: #3a2e25;
-  --toast-ink: #f6eee0;
-  --toast-action: #f2b48c;
-  --grain-desk: 0.09;
-  --grain-paper: 0.07;
+  /* Drafting table: a pale grid, tracing paper, graphite and blue pencil */
+  --desk: #eceeea;
+  --grid: rgba(60, 120, 170, 0.1);
+  --grid-major: rgba(60, 120, 170, 0.2);
+  --glow: repeating-linear-gradient(0deg, var(--grid-major) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(90deg, var(--grid-major) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 24px);
+  /* Tracing paper: the grid shows faintly through */
+  --tone-0: rgba(253, 253, 250, 0.86);
+  --tone-1: rgba(252, 252, 248, 0.84);
+  --tone-2: rgba(250, 252, 250, 0.84);
+  --tone-3: rgba(253, 252, 248, 0.84);
+  --tone-4: rgba(251, 252, 252, 0.84);
+  --paper: #fbfbf8; /* the same sheet, where nothing should show through */
+  --ink: #2d3035;
+  --ink-soft: #53585f;
+  --muted: #8b9199;
+  --line: rgba(45, 48, 53, 0.18);
+  --accent: #2f6690;
+  --accent-ink: #fbfbf8;
+  --draft: rgba(45, 48, 53, 0.55);
+  --shadow: 40, 50, 60;
+  --rule: rgba(60, 120, 170, 0.16);
+  --field: rgba(255, 255, 255, 0.7);
+  --toast-bg: #2d3035;
+  --toast-ink: #fbfbf8;
+  --toast-action: #9ccaf0;
+  --grain-desk: 0.04;
+  --grain-paper: 0.05;
   --grain-blend: multiply;
-  --scrim: rgba(46, 32, 20, 0.32);
+  --scrim: rgba(45, 48, 53, 0.3);
 
-  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
-  --font-text: 'Literata', 'Iowan Old Style', Georgia, serif;
+  --font-display: 'Architects Daughter', 'Segoe Print', cursive;
+  --font-text: 'Architects Daughter', 'Segoe Print', cursive;
   --lh: 1.9rem;
   --topbar: 64px;
 
-  /* Grain and linen textures, generated rather than downloaded */
+  /* Paper grain, generated rather than downloaded */
   --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --linen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.008 .7' numOctaves='2' stitchTiles='stitch' result='a'/%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7 .008' numOctaves='2' stitchTiles='stitch' result='b'/%3E%3CfeBlend in='a' in2='b' mode='multiply'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23l)'/%3E%3C/svg%3E");
-  --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff8ef' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.9c1.4 1.3 2.7 2.7 4 4.2 3-4.1 6.3-7.8 10-11.1'/%3E%3C/svg%3E");
+  --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fbfbf8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.9c1.4 1.3 2.7 2.7 4 4.2 3-4.1 6.3-7.8 10-11.1'/%3E%3C/svg%3E");
 }
 
-/* Lamplight: a desk at night, warm umber and a pool of light */
+/* Night shift at the drafting table */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --desk: #1b1612;
-    --glow: radial-gradient(110% 70% at 12% -12%, rgba(222, 146, 96, 0.13), transparent 62%),
-      radial-gradient(80% 60% at 105% 110%, rgba(120, 90, 60, 0.12), transparent 60%);
-    --tone-0: #2a231d;
-    --tone-1: #2c251c;
-    --tone-2: #252820;
-    --tone-3: #2e2420;
-    --tone-4: #2d2619;
-    --ink: #ebe0cd;
-    --ink-soft: #c6b69f;
-    --muted: #8f7f6b;
-    --line: rgba(235, 224, 205, 0.12);
-    --accent: #d98b5f;
-    --accent-ink: #1b1612;
+    --desk: #15181b;
+    --grid: rgba(130, 180, 220, 0.06);
+    --grid-major: rgba(130, 180, 220, 0.12);
+    --tone-0: rgba(30, 34, 38, 0.88);
+    --tone-1: rgba(31, 35, 39, 0.88);
+    --tone-2: rgba(29, 34, 38, 0.88);
+    --tone-3: rgba(32, 34, 38, 0.88);
+    --tone-4: rgba(30, 35, 40, 0.88);
+    --paper: #1e2226;
+    --ink: #e2e6ea;
+    --ink-soft: #b4bcc4;
+    --muted: #7d8790;
+    --line: rgba(226, 230, 234, 0.14);
+    --accent: #86b6de;
+    --accent-ink: #15181b;
+    --draft: rgba(226, 230, 234, 0.4);
     --shadow: 0, 0, 0;
-    --sheen: linear-gradient(172deg, rgba(255, 236, 210, 0.05), rgba(255, 236, 210, 0) 40%);
-    --tape: rgba(196, 156, 98, 0.24);
-    --rule: rgba(235, 224, 205, 0.07);
-    --field: rgba(255, 240, 220, 0.04);
-    --toast-bg: #ebe0cd;
-    --toast-ink: #2a231d;
-    --toast-action: #9b4b25;
-    --grain-desk: 0.16;
-    --grain-paper: 0.12;
+    --rule: rgba(130, 180, 220, 0.1);
+    --field: rgba(255, 255, 255, 0.04);
+    --toast-bg: #e2e6ea;
+    --toast-ink: #1e2226;
+    --toast-action: #2f6690;
+    --grain-desk: 0.08;
+    --grain-paper: 0.06;
     --grain-blend: soft-light;
-    --scrim: rgba(0, 0, 0, 0.5);
-    --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b1612' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.9c1.4 1.3 2.7 2.7 4 4.2 3-4.1 6.3-7.8 10-11.1'/%3E%3C/svg%3E");
+    --scrim: rgba(0, 0, 0, 0.55);
+    --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2315181b' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.9c1.4 1.3 2.7 2.7 4 4.2 3-4.1 6.3-7.8 10-11.1'/%3E%3C/svg%3E");
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --desk: #1b1612;
-  --glow: radial-gradient(110% 70% at 12% -12%, rgba(222, 146, 96, 0.13), transparent 62%),
-    radial-gradient(80% 60% at 105% 110%, rgba(120, 90, 60, 0.12), transparent 60%);
-  --tone-0: #2a231d;
-  --tone-1: #2c251c;
-  --tone-2: #252820;
-  --tone-3: #2e2420;
-  --tone-4: #2d2619;
-  --ink: #ebe0cd;
-  --ink-soft: #c6b69f;
-  --muted: #8f7f6b;
-  --line: rgba(235, 224, 205, 0.12);
-  --accent: #d98b5f;
-  --accent-ink: #1b1612;
+  --desk: #15181b;
+  --grid: rgba(130, 180, 220, 0.06);
+  --grid-major: rgba(130, 180, 220, 0.12);
+  --tone-0: rgba(30, 34, 38, 0.88);
+  --tone-1: rgba(31, 35, 39, 0.88);
+  --tone-2: rgba(29, 34, 38, 0.88);
+  --tone-3: rgba(32, 34, 38, 0.88);
+  --tone-4: rgba(30, 35, 40, 0.88);
+  --paper: #1e2226;
+  --ink: #e2e6ea;
+  --ink-soft: #b4bcc4;
+  --muted: #7d8790;
+  --line: rgba(226, 230, 234, 0.14);
+  --accent: #86b6de;
+  --accent-ink: #15181b;
+  --draft: rgba(226, 230, 234, 0.4);
   --shadow: 0, 0, 0;
-  --sheen: linear-gradient(172deg, rgba(255, 236, 210, 0.05), rgba(255, 236, 210, 0) 40%);
-  --tape: rgba(196, 156, 98, 0.24);
-  --rule: rgba(235, 224, 205, 0.07);
-  --field: rgba(255, 240, 220, 0.04);
-  --toast-bg: #ebe0cd;
-  --toast-ink: #2a231d;
-  --toast-action: #9b4b25;
-  --grain-desk: 0.16;
-  --grain-paper: 0.12;
+  --rule: rgba(130, 180, 220, 0.1);
+  --field: rgba(255, 255, 255, 0.04);
+  --toast-bg: #e2e6ea;
+  --toast-ink: #1e2226;
+  --toast-action: #2f6690;
+  --grain-desk: 0.08;
+  --grain-paper: 0.06;
   --grain-blend: soft-light;
-  --scrim: rgba(0, 0, 0, 0.5);
-  --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b1612' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.9c1.4 1.3 2.7 2.7 4 4.2 3-4.1 6.3-7.8 10-11.1'/%3E%3C/svg%3E");
+  --scrim: rgba(0, 0, 0, 0.55);
+  --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2315181b' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.9c1.4 1.3 2.7 2.7 4 4.2 3-4.1 6.3-7.8 10-11.1'/%3E%3C/svg%3E");
 }
 
 /* ───────────────────────── Base ───────────────────────── */
@@ -139,14 +143,14 @@ body {
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-/* The linen weave of the desk, laid under everything */
+/* Grain on the drafting table, laid under everything */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: var(--linen), var(--noise);
+  background-image: var(--noise);
   opacity: var(--grain-desk);
   mix-blend-mode: var(--grain-blend);
 }
@@ -175,7 +179,6 @@ button {
 
 input::placeholder {
   color: var(--muted);
-  font-style: italic;
   opacity: 1;
 }
 
@@ -194,12 +197,7 @@ code {
   position: relative;
   isolation: isolate;
   background-color: var(--tone);
-  background-image: var(--sheen);
-  border-radius: 5px 7px 6px 8px / 7px 5px 8px 6px;
-  box-shadow:
-    0 1px 1px rgba(var(--shadow), 0.06),
-    0 2px 4px -1px rgba(var(--shadow), 0.06),
-    0 12px 26px -14px rgba(var(--shadow), 0.38);
+  box-shadow: 0 8px 18px -14px rgba(var(--shadow), 0.35);
 }
 
 /* Fibre grain in the paper itself */
@@ -221,20 +219,6 @@ code {
 .tone-2 { --tone: var(--tone-2); }
 .tone-3 { --tone: var(--tone-3); }
 .tone-4 { --tone: var(--tone-4); }
-
-/* A strip of washi tape holding the odd page down */
-.taped::after {
-  content: '';
-  position: absolute;
-  top: -9px;
-  left: calc(50% - 34px);
-  width: 68px;
-  height: 20px;
-  background: var(--tape);
-  transform: rotate(-3deg);
-  clip-path: polygon(2% 0, 98% 4%, 100% 30%, 97% 55%, 100% 82%, 97% 100%, 3% 96%, 0 70%, 3% 45%, 0 18%);
-  pointer-events: none;
-}
 
 /* ───────────────────────── Controls ───────────────────────── */
 
@@ -262,7 +246,6 @@ code {
 .link-btn {
   color: var(--accent);
   font-size: 0.88rem;
-  font-style: italic;
   padding: 2px 4px;
   border-radius: 6px;
 }
@@ -289,8 +272,6 @@ code {
   max-width: 100%;
   padding: 1px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
   color: var(--ink-soft);
   font-size: 0.76rem;
   letter-spacing: 0.02em;
@@ -344,11 +325,10 @@ code {
 
 .brand button {
   font-family: var(--font-display);
-  font-style: italic;
   font-weight: 400;
-  font-size: 1.6rem;
-  letter-spacing: -0.01em;
-  font-variation-settings: 'SOFT' 100, 'opsz' 72;
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink);
 }
 
@@ -402,7 +382,6 @@ code {
   align-items: center;
   gap: 7px;
   font-size: 0.85rem;
-  font-style: italic;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -530,7 +509,6 @@ code {
   align-items: baseline;
   margin: 8px 14px;
   font-size: 0.84rem;
-  font-style: italic;
   color: var(--muted);
   line-height: 1.45;
 }
@@ -595,7 +573,6 @@ code {
   text-align: left;
   padding: 12px 0;
   color: var(--muted);
-  font-style: italic;
   font-size: 1.04rem;
   cursor: text;
 }
@@ -604,10 +581,67 @@ code {
   margin: 0 0 22px 4px;
   font-family: var(--font-display);
   font-weight: 400;
-  font-style: italic;
-  font-size: 1.7rem;
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-soft);
-  font-variation-settings: 'SOFT' 100;
+}
+
+/* Label name on the left, which kinds of note to show on the right */
+.shelf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 22px;
+}
+
+.shelf .shelf-title {
+  margin: 0 0 0 4px;
+}
+
+.shelf .segmented {
+  margin-left: auto;
+}
+
+/* The pinned to-do list: drawn in blue pencil, its items run in columns */
+.pinned {
+  --draft: color-mix(in srgb, var(--accent) 75%, transparent);
+  margin-bottom: 28px;
+}
+
+.pinned-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.pinned .card-title {
+  margin: 0;
+  color: var(--accent);
+}
+
+.pinned .card-body {
+  max-height: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.pinned .tasks {
+  columns: 15rem;
+  column-gap: 32px;
+}
+
+.pinned .task {
+  break-inside: avoid;
+}
+
+.pinned-empty {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .collage {
@@ -620,33 +654,33 @@ code {
   width: 100%;
   break-inside: avoid;
   margin: 0 0 20px;
-  padding: 18px 18px 14px;
+  padding: 20px 22px 16px;
+  /* Border lines drawn edge to edge, so they cross and overshoot at the corners */
+  background:
+    linear-gradient(var(--draft), var(--draft)) left 0 top 7px / 100% 1px no-repeat,
+    linear-gradient(var(--draft), var(--draft)) left 0 bottom 7px / 100% 1px no-repeat,
+    linear-gradient(var(--draft), var(--draft)) left 7px top 0 / 1px 100% no-repeat,
+    linear-gradient(var(--draft), var(--draft)) right 7px top 0 / 1px 100% no-repeat,
+    var(--tone);
   cursor: pointer;
-  transform: rotate(var(--tilt, 0deg));
   transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1), box-shadow 0.35s ease;
   animation: settle 0.5s ease backwards;
 }
 
-.card.taped {
-  margin-top: 10px;
-}
-
 .card:hover,
 .card:focus-visible {
-  transform: rotate(0deg) translateY(-2px);
-  box-shadow:
-    0 1px 1px rgba(var(--shadow), 0.06),
-    0 4px 8px -2px rgba(var(--shadow), 0.08),
-    0 20px 36px -16px rgba(var(--shadow), 0.42);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px -16px rgba(var(--shadow), 0.42);
 }
 
 .card-title {
   margin: 0 0 6px;
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 1.1rem;
+  font-weight: 400;
+  font-size: 1rem;
   line-height: 1.3;
-  font-variation-settings: 'SOFT' 60, 'opsz' 24;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
@@ -656,7 +690,7 @@ code {
   overflow: hidden;
   -webkit-mask-image: linear-gradient(#000 17rem, transparent 21rem);
   mask-image: linear-gradient(#000 17rem, transparent 21rem);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--ink);
   overflow-wrap: anywhere;
 }
@@ -673,7 +707,7 @@ code {
   width: 32px;
   height: 32px;
   opacity: 0;
-  background: var(--tone);
+  background: var(--paper);
 }
 
 .card:hover .card-delete,
@@ -690,7 +724,7 @@ code {
 @keyframes settle {
   from {
     opacity: 0;
-    transform: rotate(var(--tilt, 0deg)) translateY(6px);
+    transform: translateY(6px);
   }
 }
 
@@ -699,7 +733,6 @@ code {
   max-width: 28rem;
   text-align: center;
   color: var(--muted);
-  font-style: italic;
 }
 
 .quiet p {
@@ -710,7 +743,6 @@ code {
   font-family: var(--font-display);
   font-size: 1.7rem;
   color: var(--ink-soft);
-  font-variation-settings: 'SOFT' 100;
 }
 
 /* ───────────────────────── Prose (cards + editor) ───────────────────────── */
@@ -832,9 +864,15 @@ code {
   background: transparent;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 1.65rem;
-  font-weight: 500;
-  font-variation-settings: 'SOFT' 80, 'opsz' 48;
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h2.sheet-title {
+  margin: 0;
+  color: var(--accent);
 }
 
 .sheet-title::placeholder {
@@ -872,7 +910,6 @@ code {
   height: 0;
   pointer-events: none;
   color: var(--muted);
-  font-style: italic;
 }
 
 .ProseMirror ul[data-type='taskList'] {
@@ -940,7 +977,6 @@ code {
 .edited {
   margin-left: auto;
   font-size: 0.8rem;
-  font-style: italic;
   color: var(--muted);
 }
 
@@ -1002,7 +1038,6 @@ code {
   border-radius: 999px;
   color: var(--accent);
   font-family: var(--font-display);
-  font-style: italic;
   font-size: 1.05rem;
   transition: background-color 0.2s ease;
 }
@@ -1061,13 +1096,11 @@ code {
 
 .popover-item.create {
   color: var(--accent);
-  font-style: italic;
 }
 
 .popover-empty {
   padding: 10px;
   font-size: 0.88rem;
-  font-style: italic;
   color: var(--muted);
 }
 
@@ -1082,7 +1115,7 @@ code {
   place-items: center;
   width: 60px;
   height: 60px;
-  border-radius: 52% 48% 50% 46% / 48% 52% 46% 54%;
+  border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
   box-shadow:
@@ -1128,24 +1161,21 @@ code {
   width: min(420px, 100%);
   padding: 52px 36px 44px;
   text-align: center;
-  transform: rotate(-0.6deg);
   animation: settle 0.6s ease backwards;
 }
 
 .brand-big {
   margin: 0;
   font-family: var(--font-display);
-  font-style: italic;
   font-weight: 400;
-  font-size: 2.7rem;
-  letter-spacing: -0.015em;
-  font-variation-settings: 'SOFT' 100, 'opsz' 144;
+  font-size: 2.2rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .welcome-line {
   margin: 10px 0 30px;
   color: var(--ink-soft);
-  font-style: italic;
 }
 
 .login-form {
@@ -1191,7 +1221,6 @@ code {
   background: var(--accent);
   color: var(--accent-ink);
   font-family: var(--font-display);
-  font-style: italic;
   font-size: 1.08rem;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -1210,7 +1239,6 @@ code {
   margin: 18px 0 0;
   color: var(--ink-soft);
   font-size: 0.9rem;
-  font-style: italic;
 }
 
 .welcome-switch {
@@ -1345,12 +1373,8 @@ code {
     padding: 14px 13px 11px;
   }
 
-  .card.taped {
-    margin-top: 12px;
-  }
-
   .card-title {
-    font-size: 1rem;
+    font-size: 0.92rem;
   }
 
   .card-body {
