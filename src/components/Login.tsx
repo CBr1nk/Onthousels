@@ -23,7 +23,8 @@ export function Login() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin },
+        // BASE_URL keeps the /Onthousels/ path GitHub Pages serves the app from.
+        options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
       })
       if (error) setError(error.message === 'User already registered' ? 'There’s already an account with that email.' : error.message)
       // With email confirmation on, Supabase returns no session until the link is followed.

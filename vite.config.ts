@@ -4,9 +4,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const paper = '#eceeea'
 const year = 60 * 60 * 24 * 365
+// GitHub Pages serves the app from a subpath, not the domain root.
+const base = '/Onthousels/'
 
 export default defineConfig({
-  base: "/Onthousels/",
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -18,8 +20,8 @@ export default defineConfig({
         name: 'Onthousels',
         short_name: 'Onthousels',
         description: 'A quiet notes app: notes on tracing paper over a drafting grid.',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         theme_color: paper,
         background_color: paper,
@@ -33,7 +35,7 @@ export default defineConfig({
       workbox: {
         // The whole app shell, including the lazily loaded editor, so it opens offline.
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
         // Notes data never goes through the service worker; the app keeps its own copy.
         runtimeCaching: [
           {
