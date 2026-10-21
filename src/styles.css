@@ -1333,6 +1333,11 @@ h2.sheet-title {
 }
 
 @media (max-width: 560px) {
+  /* On a phone the search box needs the room more than the name does */
+  .brand {
+    display: none;
+  }
+
   .collage {
     columns: 2;
     column-gap: 12px;
