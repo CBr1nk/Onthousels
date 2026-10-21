@@ -6,6 +6,7 @@ const paper = '#eceeea'
 const year = 60 * 60 * 24 * 365
 
 export default defineConfig({
+  base: "/Onthousels/",
   plugins: [
     react(),
     VitePWA({
