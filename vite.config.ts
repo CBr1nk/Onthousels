@@ -19,7 +19,7 @@ export default defineConfig({
       manifest: {
         name: 'Onthousels',
         short_name: 'Onthousels',
-        description: 'A quiet notes app: notes on tracing paper over a drafting grid.',
+        description: 'A quiet notebook for the things you want to keep.',
         start_url: base,
         scope: base,
         display: 'standalone',

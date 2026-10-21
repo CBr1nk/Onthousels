@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function NoteCard({ note, labelsById, onOpen, onToggleTask, onDelete }: Props) {
-  // Each note gets its own sheet of tracing paper, stable across visits.
+  // Each note gets its own page, stable across visits.
   const tone = (hashId(note.id) >> 4) % 5
   const labels = note.labelIds.map(id => labelsById.get(id)).filter((l): l is Label => Boolean(l))
 
