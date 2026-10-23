@@ -5,8 +5,8 @@ import type { Label, Note, NoteDraft, Space } from './types'
 /** A write waiting to reach Supabase. Plain data, so it survives on the device until it's sent. */
 export type Op =
   | { kind: 'upsertNote'; row: NoteDraft }
-  /** Saves a note someone else owns: never creates one, and leaves its space alone. */
-  | { kind: 'updateNote'; row: Omit<NoteDraft, 'space'> }
+  /** Saves a note someone else owns: never creates one, and leaves its space and pinning alone. */
+  | { kind: 'updateNote'; row: Omit<NoteDraft, 'space' | 'pinned'> }
   | { kind: 'deleteNote'; id: string }
   | { kind: 'insertNote'; row: Omit<Note, 'labelIds' | 'shares'> }
   | { kind: 'insertNoteLabels'; rows: { note_id: string; label_id: string }[] }
@@ -15,7 +15,12 @@ export type Op =
   | { kind: 'deleteLabel'; id: string }
   | { kind: 'addNoteLabel'; noteId: string; labelId: string }
   | { kind: 'removeNoteLabel'; noteId: string; labelId: string }
-  | { kind: 'insertShares'; rows: { note_id: string; user_id: string; space: Space }[] }
+  | { kind: 'insertShares'; rows: { note_id: string; user_id: string; space: Space; pinned: boolean }[] }
+  | { kind: 'renameNote'; id: string; title: string }
+  /** Where a note sits among its note's pages, or among its owner's tabs. */
+  | { kind: 'setPosition'; id: string; position: number }
+  /** Where a friend's note sits among this person's tabs. */
+  | { kind: 'setSharePosition'; noteId: string; userId: string; position: number }
   | { kind: 'removeShare'; noteId: string; userId: string }
 
 function send(op: Op) {
@@ -47,6 +52,12 @@ function send(op: Op) {
       return supabase.from('note_shares').upsert(op.rows, { ignoreDuplicates: true })
     case 'removeShare':
       return supabase.from('note_shares').delete().match({ note_id: op.noteId, user_id: op.userId })
+    case 'renameNote':
+      return supabase.from('notes').update({ title: op.title }).eq('id', op.id)
+    case 'setPosition':
+      return supabase.from('notes').update({ position: op.position }).eq('id', op.id)
+    case 'setSharePosition':
+      return supabase.from('note_shares').update({ position: op.position }).match({ note_id: op.noteId, user_id: op.userId })
   }
 }
 
@@ -55,7 +66,7 @@ const isSave = (op: Op) => op.kind === 'upsertNote' || op.kind === 'updateNote'
 const noteOf = (op: Op) =>
   op.kind === 'upsertNote' || op.kind === 'updateNote' || op.kind === 'insertNote'
     ? op.row.id
-    : op.kind === 'deleteNote'
+    : op.kind === 'deleteNote' || op.kind === 'renameNote' || op.kind === 'setPosition'
       ? op.id
       : null
 

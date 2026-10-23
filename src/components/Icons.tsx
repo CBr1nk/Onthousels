@@ -138,3 +138,29 @@ export const BriefcaseIcon = (p: IconProps) => (
     <path d="M4 12.9c5.3 1.4 10.7 1.4 16 0" />
   </Svg>
 )
+
+export const PersonIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 4.4c2 0 3.6 1.6 3.6 3.6 0 2-1.6 3.7-3.6 3.7S8.4 10 8.4 8c0-2 1.6-3.6 3.6-3.6z" />
+    <path d="M5.4 19.6c.3-3.5 3-5.9 6.6-5.9 3.5 0 6.3 2.4 6.6 5.9" />
+  </Svg>
+)
+
+export const ChevronUpIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6.2 14.6c1.9-2 3.8-3.9 5.8-5.8 2 1.9 3.9 3.8 5.8 5.8" />
+  </Svg>
+)
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6.2 9.4c1.9 2 3.8 3.9 5.8 5.8 2-1.9 3.9-3.8 5.8-5.8" />
+  </Svg>
+)
+
+export const PagesIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8.1 6.1c3.6-.2 7.2-.2 10.8 0 .3 4.3.3 8.6 0 12.9-3.6.2-7.2.2-10.8 0-.3-4.3-.3-8.6 0-12.9z" />
+    <path d="M5.1 8.3c-.2 4.3-.1 8.6.1 12.9 3.2.2 6.4.2 9.6.1" />
+  </Svg>
+)

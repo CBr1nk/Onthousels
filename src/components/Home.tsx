@@ -5,7 +5,7 @@ import { useNotes } from '../hooks/useNotes'
 import type { Theme } from '../hooks/useTheme'
 import type { Person } from '../lib/collab'
 import { countDone, emptyDoc, isBlank, plainText, toggleTaskAt, withoutDone } from '../lib/doc'
-import { pinnedTodoId, uuid } from '../lib/id'
+import { uuid } from '../lib/id'
 import { clearOffline } from '../lib/offline'
 import { supabase } from '../lib/supabase'
 import type { Note, NoteDraft, NoteMode, Space } from '../lib/types'
@@ -24,8 +24,9 @@ import {
   TextIcon,
 } from './Icons'
 import { NoteCard } from './NoteCard'
-import type { CloseInfo, ShareInfo } from './NoteEditor'
-import { PinnedTodo } from './PinnedTodo'
+import type { CloseInfo } from './NoteEditor'
+import { PinnedTabs, type PinnedPage, type TabView } from './PinnedTabs'
+import type { ShareInfo } from './SharePicker'
 import { Sidebar } from './Sidebar'
 import { Toast, type ToastData } from './Toast'
 
@@ -49,7 +50,11 @@ const KINDS = [
   { id: 'checklist', name: 'Lists', Icon: ChecklistIcon },
 ] as const
 
-// Personal and Work are two desks: their own notes, labels and to-do list.
+// Pinned tabs: which one was open, and whether the private or the shared ones were showing.
+const PINNED_KEY = 'onthousels-pinned'
+const TAB_VIEW_KEY = 'onthousels-tab-view'
+
+// Personal and Work are two desks: their own notes, labels and pinned tabs.
 const SPACE_KEY = 'onthousels-space'
 const SPACES = [
   { id: 'personal', name: 'Personal', Icon: HomeIcon },
@@ -64,6 +69,18 @@ function savedKind(): Kind {
     // Storage can be unavailable (private mode); start from everything.
   }
   return 'all'
+}
+
+/** Pages and tabs, in the order they were arranged (oldest first where they never were). */
+const inOrder = (a: Note, b: Note) => a.position - b.position || a.created_at.localeCompare(b.created_at)
+
+function saved(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    // Storage can be unavailable (private mode).
+    return null
+  }
 }
 
 function savedSpace(): Space {
@@ -127,6 +144,8 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
   const [editing, setEditing] = useState<Editing | null>(null)
   const [kind, setKindState] = useState<Kind>(savedKind)
   const [space, setSpaceState] = useState<Space>(savedSpace)
+  const [pinnedId, setPinnedId] = useState(() => saved(PINNED_KEY))
+  const [tabView, setTabViewState] = useState<TabView>(() => (saved(TAB_VIEW_KEY) === 'shared' ? 'shared' : 'mine'))
 
   const setKind = (next: Kind) => {
     setKindState(next)
@@ -178,11 +197,32 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
     return undefined
   }
 
-  // The pinned to-do list is a note like any other, kept off the collage and above it.
-  const todoId = pinnedTodoId(user.id, space)
-  const todo = notes.find(n => n.id === todoId)
-  const todoContent = useMemo(() => todo?.content ?? emptyDoc('checklist'), [todo])
-  const desk = useMemo(() => notes.filter(n => n.space === space && n.id !== todoId), [notes, space, todoId])
+  // A note's pages, in order. They live inside their note, never on the desk themselves.
+  const pagesOf = useMemo(() => {
+    const m = new Map<string, Note[]>()
+    for (const n of notes) if (n.parent_id) m.set(n.parent_id, [...(m.get(n.parent_id) ?? []), n])
+    for (const list of m.values()) list.sort(inOrder)
+    return m
+  }, [notes])
+
+  // Pinned notes are notes like any other, kept off the collage and above it as tabs, in the order
+  // this person arranged them. They're split into their own and the ones shared with friends.
+  const isShared = (n: Note) => !isMine(n) || n.shares.length > 0
+  const tabs = useMemo(() => notes.filter(n => n.space === space && n.pinned && !n.parent_id).sort(inOrder), [notes, space])
+  const viewTabs = tabs.filter(n => isShared(n) === (tabView === 'shared'))
+  const activeTab = viewTabs.find(n => n.id === pinnedId) ?? viewTabs[0]
+
+  const selectTab = (id: string) => {
+    setPinnedId(id)
+    remember(PINNED_KEY, id)
+  }
+
+  const setTabView = (next: TabView) => {
+    setTabViewState(next)
+    remember(TAB_VIEW_KEY, next)
+  }
+
+  const desk = useMemo(() => notes.filter(n => n.space === space && !n.pinned && !n.parent_id), [notes, space])
   const spaceLabels = useMemo(() => labels.filter(l => l.space === space), [labels, space])
 
   const labelsById = useMemo(() => new Map(labels.map(l => [l.id, l])), [labels])
@@ -200,10 +240,14 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
         n =>
           (kind === 'all' || n.mode === kind) &&
           (!activeLabel || n.labelIds.includes(activeLabel.id)) &&
-          (!q || `${n.title} ${plainText(n.content)}`.toLowerCase().includes(q)),
+          (!q || searchText(n).toLowerCase().includes(q)),
       ),
-    [desk, kind, activeLabel, q],
+    [desk, kind, activeLabel, q, pagesOf],
   )
+  // A note's pages count towards finding it.
+  function searchText(n: Note) {
+    return [n, ...(pagesOf.get(n.id) ?? [])].map(p => `${p.title} ${plainText(p.content)}`).join(' ')
+  }
   const kindWord = kind === 'checklist' ? 'lists' : kind === 'text' ? 'text notes' : 'notes'
 
   // A note started while viewing a label is filed under that label once it's first saved.
@@ -211,27 +255,40 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
 
   const startNote = (mode: NoteMode) => {
     pendingLabel.current = activeLabel?.id ?? null
-    setEditing({ isNew: true, draft: { id: uuid(), title: '', content: emptyDoc(mode), mode, space } })
+    setEditing({ isNew: true, draft: { id: uuid(), title: '', content: emptyDoc(mode), mode, space, pinned: false } })
   }
 
   const openNote = (id: string) => {
     const n = notes.find(x => x.id === id)
     pendingLabel.current = null
-    if (n) setEditing({ isNew: false, owner: n.user_id, draft: { id: n.id, title: n.title, content: n.content, mode: n.mode, space: n.space } })
+    if (n) {
+      const { id, title, content, mode, space, pinned } = n
+      setEditing({ isNew: false, owner: n.user_id, draft: { id, title, content, mode, space, pinned } })
+    }
   }
 
-  const openTodo = () => {
-    pendingLabel.current = null
-    setEditing({ isNew: !todo, draft: { id: todoId, title: '', content: todoContent, mode: 'checklist', space } })
+  /** A new tab, straight onto the desk; with friends ticked it's shared from the start. */
+  const addTab = (name: string, mode: NoteMode, friendIds: string[]) => {
+    const id = uuid()
+    store.saveNote({ id, title: name, content: emptyDoc(mode), mode, space, pinned: true })
+    // At the end of this person's own tabs.
+    store.reorder([...tabs.filter(isMine).map(t => t.id), id])
+    for (const friendId of friendIds) store.shareNote(id, space, true, friendId, true)
+    setTabView(friendIds.length ? 'shared' : 'mine')
+    selectTab(id)
   }
 
-  const saveTodo = (content: NoteDraft['content']) => store.saveNote({ id: todoId, title: '', mode: 'checklist', content, space })
+  const saveContent = (n: Note, content: NoteDraft['content']) => {
+    const { id, title, mode, space, pinned } = n
+    store.saveNote({ id, title, mode, space, pinned, content })
+  }
 
   const clearDone = () => {
-    const before = todoContent
+    if (!activeTab) return
+    const before = activeTab.content
     const n = countDone(before)
-    saveTodo(withoutDone(before))
-    say(`Cleared ${n} done.`, { label: 'Undo', run: () => saveTodo(before) })
+    saveContent(activeTab, withoutDone(before))
+    say(`Cleared ${n} done.`, { label: 'Undo', run: () => saveContent(activeTab, before) })
   }
 
   const saveFromEditor = (draft: NoteDraft) => {
@@ -242,28 +299,34 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
     }
   }
 
-  /** Deletes a note, or for one a friend shared, takes it off this desk. Returns false if called off. */
-  const removeNote = (id: string) => {
+  /**
+   * Deletes a note, or for one a friend shared, takes it off this desk (asking first, unless that's
+   * been `confirmed` already). Returns false if called off.
+   */
+  const removeNote = (id: string, name?: string, confirmed = false) => {
     const note = notes.find(n => n.id === id)
     if (note && !isMine(note)) {
       const owner = nameOf(note.user_id) || 'Your friend'
-      if (!window.confirm(`Remove ${note.title ? `“${note.title}”` : 'this note'} from your notes? ${owner} keeps it, and can share it with you again.`)) {
-        return false
-      }
+      const what = name || note.title
+      const ok =
+        confirmed ||
+        window.confirm(`Remove ${what ? `“${what}”` : 'this note'} from your notes? ${owner} keeps it, and can share it with you again.`)
+      if (!ok) return false
       store.deleteNote(id)
       say('Removed from your notes.')
       return true
     }
     const undo = store.deleteNote(id)
-    say('Note deleted.', undo ? { label: 'Undo', run: undo } : undefined)
+    say(note?.pinned ? 'Tab deleted.' : 'Note deleted.', undo ? { label: 'Undo', run: undo } : undefined)
     return true
   }
 
   const finishEditing = ({ draft, dirty, persisted }: CloseInfo) => {
     setEditing(null)
-    // The pinned list stays even when it's empty, and so does a friend's note (it's theirs to throw away).
+    // Tabs stay even when they're empty (deleting one is deliberate), so does a note with pages,
+    // and so does a friend's note (it's theirs to throw away).
     const note = notes.find(n => n.id === draft.id)
-    if (draft.id === todoId || (note && !isMine(note))) {
+    if (draft.pinned || pagesOf.has(draft.id) || (note && !isMine(note))) {
       if (dirty) saveFromEditor(draft)
       return
     }
@@ -278,7 +341,6 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
   }
 
   const editingNote = editing ? notes.find(n => n.id === editing.draft.id) : undefined
-  const editingPinned = editing?.draft.id === todoId
   const borrowed = Boolean(editing?.owner && editing.owner !== user.id)
 
   // The friend stopped sharing the open note, or deleted it.
@@ -293,26 +355,51 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
     if (editing) store.toggleNoteLabel(editing.draft.id, labelId, on)
   }
 
-  // The to-do lists are never shared.
-  const share: ShareInfo | undefined =
-    !editing || editingPinned
-      ? undefined
-      : borrowed
+  /** Sharing for a note, from this person's side. */
+  const shareFor = (n: Pick<Note, 'id' | 'user_id' | 'space' | 'pinned' | 'title'>): ShareInfo => {
+    if (n.user_id !== user.id) {
+      return {
+        ownerName: nameOf(n.user_id) || 'A friend',
+        friends: [],
+        selected: [],
+        onToggle: () => {},
+        onLeave: () => {
+          if (removeNote(n.id, n.title)) setEditing(e => (e?.draft.id === n.id ? null : e))
+        },
+      }
+    }
+    return {
+      friends: accepted,
+      selected: notes.find(x => x.id === n.id)?.shares ?? [],
+      onToggle: (friendId, on) => store.shareNote(n.id, n.space, n.pinned, friendId, on),
+      onLeave: () => {},
+    }
+  }
+
+  const share = editing ? shareFor({ ...editing.draft, user_id: editing.owner ?? user.id }) : undefined
+
+  const pages: PinnedPage[] = viewTabs.map(n => {
+    const base = shareFor(n)
+    return {
+      id: n.id,
+      name: n.title.trim() || 'Untitled',
+      owner: isMine(n) ? undefined : nameOf(n.user_id) || 'a friend',
+      mode: n.mode,
+      content: n.content,
+      shared: isShared(n),
+      share: isMine(n)
         ? {
-            ownerName: nameOf(editing.owner!) || 'A friend',
-            friends: [],
-            selected: [],
-            onToggle: () => {},
-            onLeave: () => {
-              if (removeNote(editing.draft.id)) setEditing(null)
+            ...base,
+            // Sharing a tab (or stopping) moves it between Mine and Shared; follow it there.
+            onToggle: (friendId, on) => {
+              base.onToggle(friendId, on)
+              setTabView(on || n.shares.some(id => id !== friendId) ? 'shared' : 'mine')
             },
           }
-        : {
-            friends: accepted,
-            selected: editingNote?.shares ?? [],
-            onToggle: (friendId, on) => store.shareNote(editing.draft.id, editing.draft.space, friendId, on),
-            onLeave: () => {},
-          }
+        : base,
+    }
+  })
+  const activePage = pages.find(p => p.id === activeTab?.id)
 
   return (
     <div className="app">
@@ -398,10 +485,19 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
         </div>
 
         {!store.loading && (
-          <PinnedTodo
-            content={todoContent}
-            onOpen={openTodo}
-            onToggleTask={i => saveTodo(toggleTaskAt(todoContent, i))}
+          <PinnedTabs
+            view={tabView}
+            onView={setTabView}
+            pages={pages}
+            active={activePage}
+            friends={accepted}
+            onSelect={selectTab}
+            onOpen={() => activeTab && openNote(activeTab.id)}
+            onAdd={addTab}
+            onRename={store.renameNote}
+            onReorder={store.reorder}
+            onDelete={item => removeNote(item.id, item.name, true)}
+            onToggleTask={i => activeTab && saveContent(activeTab, toggleTaskAt(activeTab.content, i))}
             onClearDone={clearDone}
           />
         )}
@@ -456,9 +552,10 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
                 note={n}
                 labelsById={labelsById}
                 sharing={sharing(n)}
+                pages={pagesOf.get(n.id)?.length}
                 borrowed={!isMine(n)}
                 onOpen={() => openNote(n.id)}
-                onToggleTask={i => store.saveNote({ id: n.id, title: n.title, mode: n.mode, space: n.space, content: toggleTaskAt(n.content, i) })}
+                onToggleTask={i => saveContent(n, toggleTaskAt(n.content, i))}
                 onDelete={() => removeNote(n.id)}
               />
             ))}
@@ -476,7 +573,8 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
             key={editing.draft.id}
             initial={editing.draft}
             isNew={editing.isNew}
-            pinned={editingPinned}
+            saved={editingNote}
+            pinned={editing.draft.pinned}
             shared={Boolean(editingNote && (borrowed || editingNote.shares.length > 0))}
             me={me}
             nameOf={nameOf}
@@ -485,6 +583,17 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
             labels={spaceLabels}
             share={share}
             onSave={saveFromEditor}
+            pages={pagesOf.get(editing.draft.id) ?? []}
+            onSavePage={store.saveNote}
+            onAddPage={(name, mode) =>
+              store.addPage({ id: editing.draft.id, user_id: editing.owner ?? user.id, space: editing.draft.space }, name, mode, emptyDoc(mode))
+            }
+            onRenamePage={store.renameNote}
+            onReorderPages={store.reorder}
+            onDeletePage={id => {
+              const undo = store.deleteNote(id)
+              say('Page deleted.', undo ? { label: 'Undo', run: undo } : undefined)
+            }}
             onToggleLabel={toggleLabelInEditor}
             onCreateLabel={name => store.createLabel(name, editing.draft.space)}
             onDelete={() => {

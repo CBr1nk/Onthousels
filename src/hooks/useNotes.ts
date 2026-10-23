@@ -10,20 +10,25 @@ type NoteFields = Omit<Note, 'labelIds' | 'shares'>
 
 interface NoteRow extends NoteFields {
   note_labels: { label_id: string }[]
-  note_shares: { user_id: string; space: Space }[]
+  note_shares: { user_id: string; space: Space; pinned: boolean; position: number }[]
 }
 
-const NOTE_COLUMNS = 'id, user_id, title, content, mode, space, created_at, updated_at, note_labels(label_id), note_shares(user_id, space)'
+const NOTE_COLUMNS =
+  'id, user_id, title, content, mode, space, pinned, parent_id, position, created_at, updated_at, note_labels(label_id), note_shares(user_id, space, pinned, position)'
 const FRIEND_COLUMNS = 'id, requester_id, requester_email, addressee_email, addressee_id, status, requester_alias, addressee_alias, created_at'
 
 const toNote =
   (me: string) =>
   ({ note_labels, note_shares, ...row }: NoteRow): Note => {
     const mine = row.user_id === me
+    const share = note_shares.find(s => s.user_id === me)
     return {
       ...row,
-      // A shared note sits wherever the friend it was shared with keeps it.
-      space: mine ? row.space : (note_shares.find(s => s.user_id === me)?.space ?? row.space),
+      // A shared note sits wherever the friend it was shared with keeps it, pinned or not, in their
+      // order. (A page has no share of its own: it goes with its note, in the note's order.)
+      space: mine ? row.space : (share?.space ?? row.space),
+      pinned: mine ? row.pinned : (share?.pinned ?? false),
+      position: mine || !share ? row.position : share.position,
       labelIds: note_labels.map(l => l.label_id),
       shares: mine ? note_shares.map(s => s.user_id) : [],
     }
@@ -38,7 +43,15 @@ const toFriend =
 
 /** Copies kept by an earlier version have no spaces, owners or friends. */
 const upgrade = (userId: string, s: Snapshot): Required<Snapshot> => ({
-  notes: s.notes.map(n => ({ ...n, user_id: n.user_id ?? userId, space: n.space ?? 'personal', shares: n.shares ?? [] })),
+  notes: s.notes.map(n => ({
+    ...n,
+    user_id: n.user_id ?? userId,
+    space: n.space ?? 'personal',
+    pinned: n.pinned ?? false,
+    parent_id: n.parent_id ?? null,
+    position: n.position ?? 0,
+    shares: n.shares ?? [],
+  })),
   labels: s.labels.map(l => ({ ...l, space: l.space ?? 'personal' })),
   friendships: s.friendships ?? [],
 })
@@ -176,6 +189,8 @@ export function useNotes(userId: string, onError: (message: string) => void) {
                 mode: row.mode,
                 updated_at: row.updated_at,
                 space: n.user_id === userId ? row.space : n.space,
+                pinned: n.user_id === userId ? row.pinned : n.pinned,
+                position: n.user_id === userId || n.parent_id ? row.position : n.position,
               }
             : n,
         ),
@@ -224,41 +239,50 @@ export function useNotes(userId: string, onError: (message: string) => void) {
       const existing = notesRef.current.find(n => n.id === draft.id)
       setNotes(prev => {
         const i = prev.findIndex(n => n.id === draft.id)
-        if (i === -1) return [{ ...draft, user_id: userId, labelIds: [], shares: [], created_at: now, updated_at: now }, ...prev]
+        if (i === -1) {
+          return [{ ...draft, user_id: userId, parent_id: null, position: 0, labelIds: [], shares: [], created_at: now, updated_at: now }, ...prev]
+        }
         const next = [...prev]
         next[i] = { ...next[i], ...draft, updated_at: now }
         return next
       })
-      const { id, title, content, mode, space } = draft
-      if (existing && existing.user_id !== userId) outbox.push({ kind: 'updateNote', row: { id, title, content, mode } })
-      else outbox.push({ kind: 'upsertNote', row: { id, title, content, mode, space } })
+      const { id, title, content, mode, space, pinned } = draft
+      // A friend's note, or a page, is only ever updated: never recreated if it's gone meanwhile.
+      if (existing && (existing.user_id !== userId || existing.parent_id)) outbox.push({ kind: 'updateNote', row: { id, title, content, mode } })
+      else outbox.push({ kind: 'upsertNote', row: { id, title, content, mode, space, pinned } })
     },
     [outbox, userId],
   )
 
   /**
-   * Deletes immediately and returns an undo function that restores the note, its labels and
-   * its shares. For a note a friend shared, it only leaves it, which can't be undone.
+   * Deletes immediately and returns an undo function that restores the note, its pages, labels and
+   * shares. For a note a friend shared, it only leaves it, which can't be undone. A page is deleted
+   * by whoever it's shared with.
    */
   const deleteNote = useCallback(
     (id: string) => {
       const note = notesRef.current.find(n => n.id === id)
-      setNotes(prev => prev.filter(n => n.id !== id))
-      if (note && note.user_id !== userId) {
+      const pages = notesRef.current.filter(n => n.parent_id === id)
+      setNotes(prev => prev.filter(n => n.id !== id && n.parent_id !== id))
+      if (note && note.user_id !== userId && !note.parent_id) {
         outbox.push({ kind: 'removeShare', noteId: id, userId })
         return null
       }
       outbox.push({ kind: 'deleteNote', id })
       return () => {
         if (!note) return
-        setNotes(prev => [note, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+        setNotes(prev => [note, ...pages, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)))
         const { labelIds, shares, ...row } = note
         outbox.push({ kind: 'insertNote', row })
+        for (const { labelIds: _, shares: __, ...page } of pages) outbox.push({ kind: 'insertNote', row: page })
         if (labelIds.length) {
           outbox.push({ kind: 'insertNoteLabels', rows: labelIds.map(label_id => ({ note_id: id, label_id })) })
         }
         if (shares.length) {
-          outbox.push({ kind: 'insertShares', rows: shares.map(user_id => ({ note_id: id, user_id, space: note.space })) })
+          outbox.push({
+            kind: 'insertShares',
+            rows: shares.map(user_id => ({ note_id: id, user_id, space: note.space, pinned: note.pinned })),
+          })
         }
       }
     },
@@ -281,10 +305,11 @@ export function useNotes(userId: string, onError: (message: string) => void) {
 
   /**
    * Shares one of this person's notes with a friend, or stops sharing it. The friend finds it in
-   * the same space it's in here, so a work note stays among their work notes.
+   * the same space it's in here (a work note stays among their work notes), and a pinned tab
+   * arrives as a tab.
    */
   const shareNote = useCallback(
-    (noteId: string, space: Space, friendId: string, on: boolean) => {
+    (noteId: string, space: Space, pinned: boolean, friendId: string, on: boolean) => {
       // (The note may have been saved a moment ago and not be on the desk yet; this queues behind that.)
       setNotes(prev =>
         prev.map(n => {
@@ -295,11 +320,70 @@ export function useNotes(userId: string, onError: (message: string) => void) {
       )
       outbox.push(
         on
-          ? { kind: 'insertShares', rows: [{ note_id: noteId, user_id: friendId, space }] }
+          ? { kind: 'insertShares', rows: [{ note_id: noteId, user_id: friendId, space, pinned }] }
           : { kind: 'removeShare', noteId, userId: friendId },
       )
     },
     [outbox],
+  )
+
+  /** Adds a page to a note, at the end of its pages. Returns the page's id. */
+  const addPage = useCallback(
+    (parent: Pick<Note, 'id' | 'user_id' | 'space'>, title: string, mode: Note['mode'], content: Note['content']) => {
+      const now = new Date().toISOString()
+      const siblings = notesRef.current.filter(n => n.parent_id === parent.id)
+      const page: Note = {
+        id: uuid(),
+        // The server files it under the note's owner and space whoever adds it; so does this copy.
+        user_id: parent.user_id,
+        title,
+        content,
+        mode,
+        space: parent.space,
+        pinned: false,
+        parent_id: parent.id,
+        position: Math.max(0, ...siblings.map(n => n.position)) + 1,
+        created_at: now,
+        updated_at: now,
+        labelIds: [],
+        shares: [],
+      }
+      setNotes(prev => [page, ...prev])
+      const { labelIds, shares, ...row } = page
+      outbox.push({ kind: 'insertNote', row })
+      return page.id
+    },
+    [outbox],
+  )
+
+  const renameNote = useCallback(
+    (id: string, rawTitle: string) => {
+      const title = rawTitle.trim().slice(0, 200)
+      setNotes(prev => prev.map(n => (n.id === id ? { ...n, title } : n)))
+      outbox.push({ kind: 'renameNote', id, title })
+    },
+    [outbox],
+  )
+
+  /** Puts notes (a note's pages, or this person's tabs) in the given order. */
+  const reorder = useCallback(
+    (ids: string[]) => {
+      const byId = new Map(notesRef.current.map(n => [n.id, n]))
+      const moved = new Map<string, number>()
+      ids.forEach((id, i) => {
+        const n = byId.get(id)
+        if (!n || n.position === i + 1) return
+        moved.set(id, i + 1)
+        // A friend's tab is arranged in this person's share of it; anything else on the note itself.
+        outbox.push(
+          n.user_id === userId || n.parent_id
+            ? { kind: 'setPosition', id, position: i + 1 }
+            : { kind: 'setSharePosition', noteId: id, userId, position: i + 1 },
+        )
+      })
+      if (moved.size) setNotes(prev => prev.map(n => (moved.has(n.id) ? { ...n, position: moved.get(n.id)! } : n)))
+    },
+    [outbox, userId],
   )
 
   const createLabel = useCallback(
@@ -427,6 +511,9 @@ export function useNotes(userId: string, onError: (message: string) => void) {
     deleteNote,
     toggleNoteLabel,
     shareNote,
+    addPage,
+    renameNote,
+    reorder,
     createLabel,
     renameLabel,
     deleteLabel,

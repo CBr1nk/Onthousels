@@ -14,6 +14,12 @@ export interface Note {
   mode: NoteMode
   /** Where it sits on this person's desk (for a shared note, where they keep their copy). */
   space: Space
+  /** Pinned above the desk as a tab (for a shared note, as this person chose). */
+  pinned: boolean
+  /** Set for a page: the note it belongs to. */
+  parent_id: string | null
+  /** Order among a note's pages, or among this person's tabs. */
+  position: number
   created_at: string
   updated_at: string
   labelIds: string[]
@@ -27,6 +33,7 @@ export interface NoteDraft {
   content: JSONContent
   mode: NoteMode
   space: Space
+  pinned: boolean
 }
 
 export interface Label {

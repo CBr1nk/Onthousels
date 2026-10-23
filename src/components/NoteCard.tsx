@@ -1,6 +1,6 @@
 import { hashId } from '../lib/doc'
 import type { Label, Note } from '../lib/types'
-import { PeopleIcon, TrashIcon } from './Icons'
+import { PagesIcon, PeopleIcon, TrashIcon } from './Icons'
 import { NoteRenderer } from './NoteRenderer'
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
   labelsById: Map<string, Label>
   /** "with Lisa" for a note shared out, "from Lisa" for one shared in. */
   sharing?: string
+  /** How many pages the note holds, besides its own. */
+  pages?: number
   /** The friend's note rather than this person's: deleting only takes it off this desk. */
   borrowed?: boolean
   onOpen: () => void
@@ -15,7 +17,7 @@ interface Props {
   onDelete: () => void
 }
 
-export function NoteCard({ note, labelsById, sharing, borrowed, onOpen, onToggleTask, onDelete }: Props) {
+export function NoteCard({ note, labelsById, sharing, pages, borrowed, onOpen, onToggleTask, onDelete }: Props) {
   // Each note gets its own page, stable across visits.
   const tone = (hashId(note.id) >> 4) % 5
   const labels = note.labelIds.map(id => labelsById.get(id)).filter((l): l is Label => Boolean(l))
@@ -37,8 +39,14 @@ export function NoteCard({ note, labelsById, sharing, borrowed, onOpen, onToggle
       <div className="card-body">
         <NoteRenderer doc={note.content} onToggleTask={onToggleTask} />
       </div>
-      {(labels.length > 0 || sharing) && (
+      {(labels.length > 0 || sharing || pages) && (
         <footer className="chips">
+          {pages ? (
+            <span className="chip chip-pages">
+              <PagesIcon size={13} />
+              {pages === 1 ? '1 page' : `${pages} pages`}
+            </span>
+          ) : null}
           {sharing && (
             <span className="chip chip-shared">
               <PeopleIcon size={13} />

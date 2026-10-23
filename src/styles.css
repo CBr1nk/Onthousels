@@ -636,17 +636,168 @@ code {
   margin-left: auto;
 }
 
-/* The pinned to-do list: titled in blue pencil, its items run in columns */
+/* The pinned tabs: Mine / Shared on top, the tabs themselves below, list items in columns.
+   Lifted above the collage so the pickers can hang over it. */
 .pinned {
+  z-index: 3;
   margin-bottom: 28px;
 }
 
 .pinned-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 6px;
+  margin: -4px 0 12px;
+  cursor: default;
+}
+
+.pinned-view button {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 0.84rem;
+}
+
+.pinned-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  cursor: default;
+}
+
+.pinned-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Tabs that run past the edge fade out, so it's clear there are more */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+
+.pinned-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Each tab its own pill, like the Text / Lists switch; the open one tinted in blue pencil */
+.pinned-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.pinned-tab:hover {
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  color: var(--ink);
+}
+
+.pinned-tab[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* Whose tab it is, when a friend shared it */
+.pinned-owner {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.pinned-add {
+  padding: 0 10px;
+  color: var(--accent);
+}
+
+.pinned-add.on {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* New tab: name, list or note, who shares it */
+.segmented.new-tab-type {
+  display: flex;
+  margin: 8px 6px 2px;
+}
+
+.new-tab-type button {
+  flex: 1;
+  justify-content: center;
+}
+
+.btn-primary.new-tab-add {
+  width: calc(100% - 12px);
+  margin: 6px 6px 4px;
+  padding: 7px 16px;
+  font-size: 0.94rem;
+}
+
+/* Arrange: rename, move and delete tabs or pages */
+.popover.arrange {
+  width: 300px;
+}
+
+.arrange-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 0 2px 8px;
+}
+
+.arrange-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+}
+
+.arrange-row input:focus {
+  border-bottom-color: var(--accent);
+}
+
+.arrange-row .icon-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.arrange-row .icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.arrange-row .link-btn {
+  padding: 0 6px;
+}
+
+.btn-primary.new-tab-add:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pinned-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pinned-actions .icon-btn {
+  width: 34px;
+  height: 34px;
 }
 
 .pinned .card-title {
@@ -732,8 +883,13 @@ code {
   color: var(--accent);
 }
 
-.chip-shared svg {
+.chip-shared svg,
+.chip-pages svg {
   flex: none;
+}
+
+.chip-pages {
+  gap: 5px;
 }
 
 .card-delete {
@@ -862,6 +1018,7 @@ code {
 
 .editor-dialog[open] {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   align-items: start;
 }
@@ -888,8 +1045,20 @@ code {
 .sheet-scroll {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: 28px 36px 14px;
+}
+
+.sheet-body {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-body .ProseMirror {
+  flex: 1;
 }
 
 .sheet-title {
@@ -906,9 +1075,49 @@ code {
   text-transform: uppercase;
 }
 
-h2.sheet-title {
-  margin: 0;
+/* The title, with room beside it for starting a note's first page */
+.sheet-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sheet-title-row .sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* On one of its pages, the note's title leads back to the overview */
+.sheet-title-link {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  transition: color 0.2s ease;
+}
+
+.sheet-title-link:hover {
   color: var(--accent);
+}
+
+/* A note's pages, as the same pills as the pinned tabs */
+.sheet-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 14px;
+}
+
+.sheet-pages .icon-btn {
+  width: 32px;
+  height: 32px;
+}
+
+/* However many pages there are, the row scrolls rather than widening the sheet */
+.sheet-pages .pinned-tabs {
+  flex: 1 1 0;
+  width: 0;
 }
 
 .sheet-title::placeholder {
@@ -1140,6 +1349,14 @@ h2.sheet-title {
     0 1px 1px rgba(var(--shadow), 0.08),
     0 18px 40px -14px rgba(var(--shadow), 0.5);
   animation: fade 0.18s ease backwards;
+}
+
+.popover.below {
+  top: calc(100% + 6px);
+  bottom: auto;
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 .popover-input {
@@ -1616,16 +1833,77 @@ h2.sheet-title {
     mask-image: linear-gradient(#000 12rem, transparent 16rem);
   }
 
-  /* The editor becomes the whole page on a phone */
+  /* The editor becomes the whole page on a phone: exactly the part of the screen that's
+     visible, so nothing scrolls but the note itself and the toolbar rides above the keyboard
+     (see src/lib/viewport.ts) */
   .editor-dialog {
     padding: 0;
+    top: var(--vv-top, 0px);
+    bottom: auto;
+    height: var(--vv-height, 100dvh);
+    overflow: hidden;
   }
 
   .sheet {
     width: 100%;
-    height: 100dvh;
+    height: var(--vv-height, 100dvh);
     max-height: none;
     border-radius: 0;
+  }
+
+  :root[data-keyboard] .sheet-tools {
+    padding-bottom: 6px;
+  }
+
+  .sheet-tools .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .sheet-tools .segmented button {
+    padding: 0 8px;
+  }
+
+  .btn-done {
+    padding: 7px 12px;
+  }
+
+  .pinned-tab {
+    padding: 0 12px;
+    font-size: 0.86rem;
+  }
+
+  /* In the pinned card and the note's own header, pickers hang from their own button,
+     not across the toolbar */
+  .pinned .anchor,
+  .sheet-scroll .anchor {
+    position: relative;
+  }
+
+  .pinned .popover.below,
+  .sheet-scroll .popover.below {
+    left: auto;
+    right: 0;
+    width: 250px;
+    max-width: calc(100vw - 56px);
+  }
+
+  .sheet-scroll .popover.arrange {
+    width: 300px;
+    max-width: calc(100vw - 40px);
+  }
+
+  /* The tab list is wider than the room left of its button, so it spans the card instead */
+  .pinned .anchor:has(.arrange) {
+    position: static;
+  }
+
+  .pinned .popover.arrange {
+    top: 50px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
   }
 
   .sheet-scroll {
@@ -1634,7 +1912,7 @@ h2.sheet-title {
 
   .sheet-tools {
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom)) 10px;
-    gap: 2px;
+    gap: 0;
   }
 
   .hide-sm {
@@ -1675,5 +1953,20 @@ h2.sheet-title {
     right: 8px;
     width: auto;
     transform: none;
+  }
+}
+
+@media (max-width: 370px) {
+  .sheet-tools .icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sheet-tools .segmented button {
+    padding: 0 6px;
+  }
+
+  .tool-sep {
+    display: none;
   }
 }

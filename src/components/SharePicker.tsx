@@ -2,18 +2,24 @@ import { useEffect, useRef } from 'react'
 import type { Person } from '../lib/collab'
 import { CheckIcon } from './Icons'
 
-interface Props {
+/** Who a note is (or can be) shared with, from this person's side. */
+export interface ShareInfo {
   /** Set when a friend shared this note: their name. Otherwise the note is this person's own. */
   ownerName?: string
   friends: Person[]
   selected: string[]
   onToggle: (userId: string, on: boolean) => void
   onLeave: () => void
+}
+
+interface Props extends ShareInfo {
+  /** Hang below the button instead of above it (near the top of the screen). */
+  below?: boolean
   onClose: () => void
 }
 
 /** Who a note is shared with. Friends ticked here can open it and write in it too. */
-export function SharePicker({ ownerName, friends, selected, onToggle, onLeave, onClose }: Props) {
+export function SharePicker({ ownerName, friends, selected, onToggle, onLeave, below, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -31,7 +37,7 @@ export function SharePicker({ ownerName, friends, selected, onToggle, onLeave, o
   return (
     <div
       ref={ref}
-      className="popover paper"
+      className={`popover paper${below ? ' below' : ''}`}
       role="dialog"
       aria-label="Share"
       onKeyDown={e => {
