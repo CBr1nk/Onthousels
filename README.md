@@ -46,6 +46,7 @@ The app icons in `public/` are generated from `public/favicon.svg`. After changi
 
 - **Writing**: tap *Write something…* (or the + button on a phone). Notes save themselves about a second after you pause, and when you press *Done*, press Esc, or click outside. A note left completely empty is discarded. Tapping anywhere on the page below the text carries on writing at the end. On a phone the note fills the visible screen, and while the keyboard is up the toolbar sits just above it.
 - **Text ↔ checkboxes**: the *Text / List* switch converts each line into a checkbox and back. Formatting survives the switch. Tick state is dropped when going back to text.
+- **Lists**: opening a list (a note, tab or page) puts the cursor on a fresh line at the end, ready to type; if it's still empty when you close, it's dropped, and opening a list without changing it doesn't count as an edit. Drag an item by the grip on its left (shown on hover; always on a phone) to move it, along with anything nested under it: up or down to reorder, right or left as you go to nest it under the item above or bring it back out. A line shows where it will land; Esc cancels. Tab and Shift+Tab nest and un-nest the item you're on.
 - **Formatting**: Ctrl/⌘+B and Ctrl/⌘+I, or the B and I buttons (useful on phones). Ctrl+U for underline also works.
 - **Labels**: the tag button in a note finds or creates labels. The sidebar filters by label, and *Edit* renames or deletes them. Deleting a label keeps its notes. A new note started while you're viewing a label gets that label.
 - **Personal / Work**: the switch in the top bar (icons only on a phone) flips between two desks. Each has its own notes, labels and pinned tabs. The app remembers which one you were on, per device.
@@ -54,7 +55,7 @@ The app icons in `public/` are generated from `public/favicon.svg`. After changi
 - **Mine / Shared**: the switch at the top of the tabs flips between the tabs only you see and the ones shared with friends, yours and theirs, e.g. a family shopping list. Sharing a tab, or stopping, moves it across. A friend's tab shows their name after it. The app remembers which side and tab were open, per device.
 - **Text / Lists filter**: the *All · Text · Lists* switch above the notes shows only text notes, only checklists, or both. It remembers your choice on that device.
 - **Collage**: notes sit newest-first and stay in place when you edit them, so the desk doesn't reshuffle under you. You can tick checkboxes straight from a card.
-- **Deleting**: use the trash icon on a card (on hover) or in the editor. You can undo for a few seconds afterwards.
+- **Deleting**: use the trash icon on a card (on hover) or in the editor. It asks first, mentioning any pages that go with it and who else it's shared with, and you can still undo for a few seconds afterwards.
 - **Friends**: open *Friends* in the menu, give a name (e.g. Lisa) and an email address, and send a request. No email is sent: the request waits in the app for whoever signs in with that address, and they can accept (naming you however they like) or decline. Names are your own and can be changed at any time. Removing a friend stops sharing between you.
 - **Sharing**: the people button in a note shares it with friends (any note, tabs included). A shared note shows *with Lisa* on your card and *from you* (by the name Lisa gave you) on hers, in the same space you keep it in. Only the owner can delete it; a friend can remove it from their own notes. Each person files it under their own labels.
 - **Writing together**: while a shared note is open on both sides, each sees the other's typing as it happens, with their caret and name, and edits made at the same moment merge rather than overwrite. Title, text, ticks and the Text/List switch all sync. Underneath, the open note is a Yjs document passed between you over a private Supabase Realtime channel; the note itself is still saved as before.
@@ -73,6 +74,7 @@ src/
   lib/doc.ts            note-document helpers (text↔checklist, search text)
   lib/collab.ts         editing a shared note together: Yjs document + Realtime channel
   lib/viewport.ts       keeps the editor above a phone's keyboard
+  lib/tasks.ts          checklist items: drag grips, Tab nesting, the fresh line
   lib/outbox.ts         writes kept on the device and sent in order, retried while offline
   lib/offline.ts        IndexedDB copy of notes/labels and outbox; last signed-in user
   lib/hashtags.ts       "#tag" while writing → label

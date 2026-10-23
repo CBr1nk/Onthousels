@@ -35,7 +35,7 @@ export const meta = (doc: Y.Doc) => doc.getMap<NoteMode>('meta')
 export const titleText = (doc: Y.Doc) => doc.getText('title')
 
 /** Sorted-key JSON, so the same note reads the same however its keys happened to be ordered. */
-function canonical(v: unknown): string {
+export function canonical(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>

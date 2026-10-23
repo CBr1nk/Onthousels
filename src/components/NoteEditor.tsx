@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
 import { EditorContent, Node, useEditor, useEditorState, type Editor, type Extensions, type JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
-import { joinNote, meta, seed, SEED, setText, titleText, writeBody, type Person } from '../lib/collab'
-import { hashId, isBlank, toChecklist, toText } from '../lib/doc'
+import { canonical, joinNote, meta, seed, SEED, setText, titleText, writeBody, type Person } from '../lib/collab'
+import { hashId, isBlank, toChecklist, toText, withoutBlankEnd } from '../lib/doc'
 import { Hashtags, takeTagBeforeCursor } from '../lib/hashtags'
+import { appendBlankItem, attachTaskDrag, DraggableTaskItem, editorDom, setTasks, TaskKeys, whenMounted } from '../lib/tasks'
 import type { Label, NoteDraft, NoteMode } from '../lib/types'
 import { ChecklistIcon, PagesIcon, PencilIcon, PeopleIcon, PlusIcon, TagIcon, TextIcon, TrashIcon } from './Icons'
 import { LabelPicker } from './LabelPicker'
@@ -60,7 +61,8 @@ function extensionsFor(mode: NoteMode, onTag: (name: string) => void, together?:
     }),
     ChecklistDoc,
     TaskList,
-    TaskItem.configure({ nested: true }),
+    DraggableTaskItem.configure({ nested: true }),
+    TaskKeys,
     placeholder,
     hashtags,
     ...collab,
@@ -572,27 +574,41 @@ function Page(props: PageProps) {
   const timer = useRef<number | undefined>(undefined)
   const focusBody = useRef(isNew || props.autoFocus)
 
+  // A list is kept without the empty items at its end (like the fresh line it opens with).
   const draft = (): NoteDraft => ({
     id: initial.id,
     title: root ? titleRef.current : (cb.current.name ?? titleRef.current),
-    content: contentRef.current,
+    content: modeRef.current === 'checklist' ? withoutBlankEnd(contentRef.current) : contentRef.current,
     mode: modeRef.current,
     space: initial.space,
     pinned: initial.pinned,
   })
 
-  const save = () => {
+  // What was last saved, so a save that would change nothing (opening a list adds a line and
+  // closing takes it away again) doesn't mark the note as edited.
+  const fingerprint = (d: NoteDraft) => canonical({ title: d.title, mode: d.mode, content: d.content })
+  const lastSaved = useRef<string | null>(null)
+  lastSaved.current ??= fingerprint({
+    ...initial,
+    content: initial.mode === 'checklist' ? withoutBlankEnd(initial.content) : initial.content,
+  })
+
+  const save = (force = false) => {
     window.clearTimeout(timer.current)
-    if (!dirty.current) return
+    if (!dirty.current && !force) return
     dirty.current = false
+    const d = draft()
+    const f = fingerprint(d)
+    if (f === lastSaved.current && !force) return
+    lastSaved.current = f
     persisted.current = true
-    cb.current.onSave(draft())
+    cb.current.onSave(d)
   }
   // Autosave shortly after a pause, whoever was writing.
   const touch = () => {
     dirty.current = true
     window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(save, 700)
+    timer.current = window.setTimeout(() => save(), 700)
   }
   const touchRef = useRef(touch)
   touchRef.current = touch
@@ -689,14 +705,31 @@ function Page(props: PageProps) {
     cb.current.onView({ editor, mode, ready, peers })
   }, [editor, mode, ready, peers])
 
+  // A list opens on a fresh line at the end, ready to type into; it's dropped again if it stays empty.
   useEffect(() => {
-    if (!editor || !ready || !focusBody.current) return
-    // The editor may be torn down (mode switch, StrictMode remount) before the frame fires.
-    const frame = requestAnimationFrame(() => {
-      if (!editor.isDestroyed) editor.commands.focus('end')
+    const list = mode === 'checklist'
+    if (!editor || !ready || !(focusBody.current || list)) return
+    // Once the editor is on screen; and it may be torn down (mode switch, StrictMode remount)
+    // before the frame fires.
+    let frame = 0
+    const cancel = whenMounted(editor, () => {
+      frame = requestAnimationFrame(() => {
+        if (!editorDom(editor)) return
+        if (list) appendBlankItem(editor)
+        editor.commands.focus('end')
+      })
     })
-    return () => cancelAnimationFrame(frame)
-  }, [editor, ready])
+    return () => {
+      cancel()
+      cancelAnimationFrame(frame)
+    }
+  }, [editor, ready, mode])
+
+  // List items can be dragged by their grips to reorder and nest them.
+  useEffect(() => {
+    if (!editor || !ready || mode !== 'checklist') return
+    return attachTaskDrag(editor)
+  }, [editor, ready, mode])
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
@@ -706,7 +739,7 @@ function Page(props: PageProps) {
     const vv = window.visualViewport
     if (!editor || !vv) return
     const onResize = () => {
-      if (!editor.isDestroyed && editor.isFocused) editor.commands.scrollIntoView()
+      if (editorDom(editor) && editor.isFocused) editor.commands.scrollIntoView()
     }
     vv.addEventListener('resize', onResize)
     return () => vv.removeEventListener('resize', onResize)
@@ -715,10 +748,19 @@ function Page(props: PageProps) {
   useImperativeHandle(ref, () => ({
     finish: () => {
       const tag = root && editor ? takeTagBeforeCursor(editor) : null
+      // Take the empty line off the end for anyone else who has the list open, too.
+      if (editor && !editor.isDestroyed && readyRef.current && modeRef.current === 'checklist') {
+        const json = editor.getJSON()
+        const trimmed = withoutBlankEnd(json)
+        if (trimmed !== json) setTasks(editor, trimmed)
+      }
       window.clearTimeout(timer.current)
-      const info = { draft: draft(), dirty: dirty.current, persisted: persisted.current, tag }
+      const d = draft()
+      const f = fingerprint(d)
+      const info = { draft: d, dirty: f !== lastSaved.current, persisted: persisted.current, tag }
       // Whoever finished it saves it now, so leaving doesn't save it again.
       dirty.current = false
+      lastSaved.current = f
       return info
     },
     switchMode: next => {
@@ -730,9 +772,7 @@ function Page(props: PageProps) {
       writeBody(doc, next, content, extensionsFor(next, noTag))
     },
     ensureSaved: () => {
-      if (persisted.current) return
-      dirty.current = true
-      save()
+      if (!persisted.current) save(true)
     },
   }))
 

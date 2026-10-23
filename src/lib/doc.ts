@@ -101,3 +101,55 @@ export function withoutDone(doc: JSONContent): JSONContent {
   const next = prune(doc)
   return next?.content?.length ? next : emptyDoc('checklist')
 }
+
+/** A checklist item on its own, with how deeply it's nested. Items nested under it follow it. */
+export interface FlatTask {
+  depth: number
+  attrs: JSONContent['attrs']
+  /** Its own text (everything but the items nested under it). */
+  blocks: JSONContent[]
+}
+
+/** A checklist's items in reading order (the order they appear on screen). */
+export function flattenTasks(doc: JSONContent): FlatTask[] {
+  const out: FlatTask[] = []
+  const walk = (list: JSONContent, depth: number) => {
+    for (const item of list.content ?? []) {
+      if (item.type !== 'taskItem') continue
+      out.push({ depth, attrs: item.attrs, blocks: (item.content ?? []).filter(c => c.type !== 'taskList') })
+      for (const child of item.content ?? []) if (child.type === 'taskList') walk(child, depth + 1)
+    }
+  }
+  for (const node of doc.content ?? []) if (node.type === 'taskList') walk(node, 0)
+  return out
+}
+
+/** The other way round: a checklist document from items in reading order. */
+export function buildTasks(flat: FlatTask[]): JSONContent {
+  const top: JSONContent[] = []
+  const open: { depth: number; item: JSONContent }[] = []
+  for (const f of flat) {
+    const item: JSONContent = { type: 'taskItem', attrs: f.attrs, content: [...f.blocks] }
+    while (open.length && open[open.length - 1].depth >= f.depth) open.pop()
+    const parent = open[open.length - 1]?.item
+    if (!parent) {
+      top.push(item)
+    } else {
+      let list = parent.content!.find(c => c.type === 'taskList')
+      if (!list) parent.content!.push((list = { type: 'taskList', content: [] }))
+      list.content!.push(item)
+    }
+    open.push({ depth: f.depth, item })
+  }
+  return top.length ? { type: 'doc', content: [{ type: 'taskList', content: top }] } : emptyDoc('checklist')
+}
+
+const blankTask = (t: FlatTask) => t.blocks.every(b => plainText(b).trim() === '')
+
+/** Drops empty items left at the end of a checklist (always keeping one). Returns the same document if there are none. */
+export function withoutBlankEnd(doc: JSONContent): JSONContent {
+  const flat = flattenTasks(doc)
+  let end = flat.length
+  while (end > 1 && blankTask(flat[end - 1])) end--
+  return end === flat.length ? doc : buildTasks(flat.slice(0, end))
+}

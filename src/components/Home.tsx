@@ -316,6 +316,15 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
       say('Removed from your notes.')
       return true
     }
+    if (note && !confirmed) {
+      const what = name || note.title.trim()
+      const pages = pagesOf.get(id)?.length ?? 0
+      const withPages = pages ? ` and its ${pages === 1 ? 'page' : `${pages} pages`}` : ''
+      const friends = note.shares.map(f => nameOf(f) || 'a friend')
+      const shared = friends.length ? ` It’s shared with ${friends.join(', ')}, so it goes for them too.` : ''
+      const thing = note.pinned ? 'this tab' : 'this note'
+      if (!window.confirm(`Delete ${what ? `“${what}”` : thing}${withPages}?${shared}`)) return false
+    }
     const undo = store.deleteNote(id)
     say(note?.pinned ? 'Tab deleted.' : 'Note deleted.', undo ? { label: 'Undo', run: undo } : undefined)
     return true
@@ -597,9 +606,8 @@ export function Home({ user, theme, onToggleTheme }: { user: User; theme: Theme;
             onToggleLabel={toggleLabelInEditor}
             onCreateLabel={name => store.createLabel(name, editing.draft.space)}
             onDelete={() => {
-              const id = editing.draft.id
-              setEditing(null)
-              if (editingNote) removeNote(id)
+              // A note that was never saved just goes; anything else is asked about first.
+              if (!editingNote || removeNote(editing.draft.id)) setEditing(null)
             }}
             onClose={finishEditing}
           />
