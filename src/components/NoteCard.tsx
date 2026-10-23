@@ -1,17 +1,21 @@
 import { hashId } from '../lib/doc'
 import type { Label, Note } from '../lib/types'
-import { TrashIcon } from './Icons'
+import { PeopleIcon, TrashIcon } from './Icons'
 import { NoteRenderer } from './NoteRenderer'
 
 interface Props {
   note: Note
   labelsById: Map<string, Label>
+  /** "with Lisa" for a note shared out, "from Lisa" for one shared in. */
+  sharing?: string
+  /** The friend's note rather than this person's: deleting only takes it off this desk. */
+  borrowed?: boolean
   onOpen: () => void
   onToggleTask: (index: number) => void
   onDelete: () => void
 }
 
-export function NoteCard({ note, labelsById, onOpen, onToggleTask, onDelete }: Props) {
+export function NoteCard({ note, labelsById, sharing, borrowed, onOpen, onToggleTask, onDelete }: Props) {
   // Each note gets its own page, stable across visits.
   const tone = (hashId(note.id) >> 4) % 5
   const labels = note.labelIds.map(id => labelsById.get(id)).filter((l): l is Label => Boolean(l))
@@ -33,8 +37,14 @@ export function NoteCard({ note, labelsById, onOpen, onToggleTask, onDelete }: P
       <div className="card-body">
         <NoteRenderer doc={note.content} onToggleTask={onToggleTask} />
       </div>
-      {labels.length > 0 && (
+      {(labels.length > 0 || sharing) && (
         <footer className="chips">
+          {sharing && (
+            <span className="chip chip-shared">
+              <PeopleIcon size={13} />
+              {sharing}
+            </span>
+          )}
           {labels.map(l => (
             <span key={l.id} className="chip">
               {l.name}
@@ -45,8 +55,8 @@ export function NoteCard({ note, labelsById, onOpen, onToggleTask, onDelete }: P
       <button
         type="button"
         className="icon-btn card-delete"
-        aria-label="Delete note"
-        title="Delete"
+        aria-label={borrowed ? 'Remove from my notes' : 'Delete note'}
+        title={borrowed ? 'Remove from my notes' : 'Delete'}
         onClick={e => {
           e.stopPropagation()
           onDelete()

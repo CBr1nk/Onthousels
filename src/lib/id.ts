@@ -1,3 +1,5 @@
+import type { Space } from './types'
+
 // crypto.randomUUID only exists in secure contexts (HTTPS or localhost), so a phone
 // opening the dev server over the LAN needs the getRandomValues fallback.
 export function uuid(): string {
@@ -10,10 +12,12 @@ export function uuid(): string {
 }
 
 /**
- * The id of a person's pinned to-do list. It's derived from their own id (each hex digit
- * flipped), so every device finds the same note without asking the server, and an offline
- * first edit can't create a second list.
+ * The id of a person's pinned to-do list in a space. It's derived from their own id (each hex
+ * digit flipped for Personal, shifted by 8 for Work), so every device finds the same note without
+ * asking the server, and an offline first edit can't create a second list. supabase/schema.sql
+ * makes the same derivation to keep these lists from being shared.
  */
-export function pinnedTodoId(userId: string): string {
-  return userId.replace(/[0-9a-f]/gi, c => (15 - parseInt(c, 16)).toString(16))
+export function pinnedTodoId(userId: string, space: Space = 'personal'): string {
+  const shift = space === 'work' ? (d: number) => (d + 8) % 16 : (d: number) => 15 - d
+  return userId.replace(/[0-9a-f]/gi, c => shift(parseInt(c, 16)).toString(16))
 }

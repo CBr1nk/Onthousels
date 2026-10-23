@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Label } from '../lib/types'
-import { CheckIcon, LeaveIcon, NotesIcon, PencilIcon, PlusIcon, TagIcon, TrashIcon } from './Icons'
+import { CheckIcon, LeaveIcon, NotesIcon, PencilIcon, PeopleIcon, PlusIcon, TagIcon, TrashIcon } from './Icons'
 
 interface Props {
   user: User
@@ -10,6 +10,9 @@ interface Props {
   total: number
   selected: string | null
   open: boolean
+  /** Friend requests waiting for an answer. */
+  requests: number
+  onOpenFriends: () => void
   onSelect: (labelId: string | null) => void
   onCreate: (name: string) => void
   onRename: (id: string, name: string) => void
@@ -109,6 +112,23 @@ export function Sidebar(props: Props) {
             </p>
           )}
         </nav>
+
+        <button
+          type="button"
+          className="nav-item friends-item"
+          onClick={() => {
+            props.onOpenFriends()
+            onClose()
+          }}
+        >
+          <PeopleIcon size={19} />
+          <span className="nav-name">Friends</span>
+          {props.requests > 0 && (
+            <span className="badge" aria-label={`${props.requests} waiting`}>
+              {props.requests}
+            </span>
+          )}
+        </button>
 
         <div className="me">
           <span className="me-initial">{name[0]?.toUpperCase()}</span>

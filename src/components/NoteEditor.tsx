@@ -3,27 +3,53 @@ import { EditorContent, Node, useEditor, useEditorState, type Extensions } from 
 import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
-import { isBlank, toChecklist, toText } from '../lib/doc'
+import { Collaboration } from '@tiptap/extension-collaboration'
+import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
+import * as Y from 'yjs'
+import { Awareness } from 'y-protocols/awareness'
+import { joinNote, meta, seed, SEED, setText, titleText, writeBody, type Person } from '../lib/collab'
+import { hashId, isBlank, toChecklist, toText } from '../lib/doc'
 import { Hashtags, takeTagBeforeCursor } from '../lib/hashtags'
 import type { Label, NoteDraft, NoteMode } from '../lib/types'
-import { ChecklistIcon, TagIcon, TextIcon, TrashIcon } from './Icons'
+import { ChecklistIcon, PeopleIcon, TagIcon, TextIcon, TrashIcon } from './Icons'
 import { LabelPicker } from './LabelPicker'
+import { SharePicker } from './SharePicker'
 
 // In checklist mode the whole note is a single task list.
 const ChecklistDoc = Node.create({ name: 'doc', topNode: true, content: 'taskList' })
 
 const sharedKit = { heading: false, code: false, codeBlock: false, blockquote: false, horizontalRule: false, link: false } as const
 
-function extensionsFor(mode: NoteMode, onTag: (name: string) => void): Extensions {
+interface Together {
+  doc: Y.Doc
+  awareness: Awareness
+  me: Person & { color: string }
+  /** Draws a friend's caret, labelled with the name this person knows them by. */
+  caret: (user: Record<string, string>) => HTMLElement
+}
+
+function extensionsFor(mode: NoteMode, onTag: (name: string) => void, together?: Together): Extensions {
   const placeholder = Placeholder.configure({
     placeholder: mode === 'text' ? 'Begin anywhere…' : 'List item',
     includeChildren: true,
   })
   const hashtags = Hashtags.configure({ onTag })
-  if (mode === 'text') return [StarterKit.configure(sharedKit), placeholder, hashtags]
+  // Edits go through the shared document, which keeps its own undo history.
+  const collab = together
+    ? [
+        Collaboration.configure({ document: together.doc, field: mode }),
+        CollaborationCaret.configure({
+          provider: { awareness: together.awareness },
+          user: { id: together.me.userId, name: together.me.name, color: together.me.color },
+          render: together.caret,
+        }),
+      ]
+    : []
+  const kit = { ...sharedKit, ...(together && { undoRedo: false as const }) }
+  if (mode === 'text') return [StarterKit.configure(kit), placeholder, hashtags, ...collab]
   return [
     StarterKit.configure({
-      ...sharedKit,
+      ...kit,
       document: false,
       trailingNode: false,
       bulletList: false,
@@ -36,8 +62,15 @@ function extensionsFor(mode: NoteMode, onTag: (name: string) => void): Extension
     TaskItem.configure({ nested: true }),
     placeholder,
     hashtags,
+    ...collab,
   ]
 }
+
+const noTag = () => {}
+
+// Pencil colours for friends' carets.
+const CARET_COLORS = ['#2f6690', '#b0563d', '#3f7d5a', '#8a5aa8', '#a07a1f', '#2c7c86']
+export const caretColor = (userId: string) => CARET_COLORS[hashId(userId) % CARET_COLORS.length]
 
 export interface CloseInfo {
   draft: NoteDraft
@@ -45,14 +78,28 @@ export interface CloseInfo {
   persisted: boolean
 }
 
+export interface ShareInfo {
+  /** Set when a friend shared this note: their name. */
+  ownerName?: string
+  friends: Person[]
+  selected: string[]
+  onToggle: (userId: string, on: boolean) => void
+  onLeave: () => void
+}
+
 interface Props {
   initial: NoteDraft
   isNew: boolean
-  /** The pinned to-do list: always a checklist, never deleted or labelled. */
+  /** The pinned to-do list: always a checklist, never deleted, labelled or shared. */
   pinned?: boolean
+  /** Shared with a friend, so they may have it open too. */
+  shared: boolean
+  me: Person
+  nameOf: (userId: string) => string
   editedAt?: string
   labelIds: string[]
   labels: Label[]
+  share?: ShareInfo
   onSave: (draft: NoteDraft) => void
   onToggleLabel: (labelId: string, on: boolean) => void
   onCreateLabel: (name: string) => Promise<Label | null>
@@ -63,13 +110,24 @@ interface Props {
 const editedFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 
 export function NoteEditor(props: Props) {
-  const { initial, isNew, pinned, editedAt, labelIds, labels } = props
+  const { initial, isNew, pinned, shared, editedAt, labelIds, labels, share } = props
   const cb = useRef(props)
   cb.current = props
 
+  // The note as a shared document. A note nobody else has is built from what's saved straight
+  // away; a shared one waits to hear whether a friend already has it open.
+  const [{ doc, awareness }] = useState(() => {
+    const doc = new Y.Doc()
+    if (!shared) seed(doc, initial, extensionsFor(initial.mode, noTag))
+    return { doc, awareness: new Awareness(doc) }
+  })
+  const [ready, setReady] = useState(!shared)
+  const readyRef = useRef(ready)
+  const [peers, setPeers] = useState<Person[]>([])
+
   const [title, setTitle] = useState(initial.title)
   const [mode, setMode] = useState<NoteMode>(initial.mode)
-  const [picking, setPicking] = useState(false)
+  const [picking, setPicking] = useState<'labels' | 'share' | null>(null)
 
   const titleRef = useRef(initial.title)
   const modeRef = useRef(initial.mode)
@@ -86,6 +144,7 @@ export function NoteEditor(props: Props) {
     title: titleRef.current,
     content: contentRef.current,
     mode: modeRef.current,
+    space: initial.space,
   })
 
   const save = () => {
@@ -96,12 +155,14 @@ export function NoteEditor(props: Props) {
     cb.current.onSave(draft())
   }
 
-  // Autosave shortly after the writer pauses.
+  // Autosave shortly after a pause, whoever was writing.
   const touch = () => {
     dirty.current = true
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(save, 700)
   }
+  const touchRef = useRef(touch)
+  touchRef.current = touch
 
   const close = () => {
     // A tag typed just before Done still counts, unless it was all the note held.
@@ -126,18 +187,91 @@ export function NoteEditor(props: Props) {
   const addTagRef = useRef(addTag)
   addTagRef.current = addTag
 
+  // Title and mode live in the shared document too, so a friend's changes show up here.
+  useEffect(() => {
+    const m = meta(doc)
+    const t = titleText(doc)
+    const onMeta = () => {
+      const next = m.get('mode')
+      if (!next || next === modeRef.current) return
+      modeRef.current = next
+      setMode(next)
+    }
+    const onTitle = () => {
+      titleRef.current = t.toString()
+      setTitle(titleRef.current)
+    }
+    const onUpdate = (_: Uint8Array, origin: unknown) => {
+      if (origin !== SEED && readyRef.current) touchRef.current()
+    }
+    m.observe(onMeta)
+    t.observe(onTitle)
+    doc.on('update', onUpdate)
+    return () => {
+      m.unobserve(onMeta)
+      t.unobserve(onTitle)
+      doc.off('update', onUpdate)
+    }
+  }, [doc])
+
+  // Friends' names on their carets, as this person knows them.
+  const caret = useCallback((user: Record<string, string>) => {
+    const el = document.createElement('span')
+    el.className = 'collab-caret'
+    el.style.borderColor = user.color
+    const label = document.createElement('span')
+    label.className = 'collab-caret-label'
+    label.style.backgroundColor = user.color
+    label.textContent = cb.current.nameOf(user.id) || user.name
+    el.append(label)
+    return el
+  }, [])
+
   const editor = useEditor(
     {
-      extensions: extensionsFor(mode, name => addTagRef.current(name)),
-      content: contentRef.current,
+      // Until the shared document is in hand, show the saved note without letting it be edited.
+      extensions: extensionsFor(
+        mode,
+        name => addTagRef.current(name),
+        ready ? { doc, awareness, me: { ...props.me, color: caretColor(props.me.userId) }, caret } : undefined,
+      ),
+      content: ready ? undefined : initial.content,
+      editable: ready,
       editorProps: { attributes: { class: 'prose editor-prose', 'aria-label': 'Note' } },
+      onCreate: ({ editor }) => {
+        if (readyRef.current) contentRef.current = editor.getJSON()
+      },
       onUpdate: ({ editor }) => {
-        contentRef.current = editor.getJSON()
-        touch()
+        if (readyRef.current) contentRef.current = editor.getJSON()
       },
     },
-    [mode],
+    [mode, ready],
   )
+
+  // A shared note is edited together over its own channel.
+  useEffect(() => {
+    if (!shared) return
+    const markReady = () => {
+      readyRef.current = true
+      setReady(true)
+    }
+    return joinNote({
+      noteId: initial.id,
+      doc,
+      awareness,
+      me: cb.current.me,
+      isReady: () => readyRef.current,
+      onAlone: () => {
+        seed(doc, cb.current.initial, extensionsFor(cb.current.initial.mode, noTag))
+        markReady()
+      },
+      onSynced: markReady,
+      onPeers: setPeers,
+    })
+  }, [shared, initial.id, doc, awareness])
+
+  // Stop renewing this person's caret once the note is closed.
+  useEffect(() => () => awareness.destroy(), [awareness])
 
   const active = useEditorState({
     editor,
@@ -162,37 +296,46 @@ export function NoteEditor(props: Props) {
   }, [])
 
   useEffect(() => {
-    if (!editor || !focusBody.current) return
+    if (!editor || !ready || !focusBody.current) return
     // The editor may be torn down (mode switch, StrictMode remount) before the frame fires.
     const frame = requestAnimationFrame(() => {
       if (!editor.isDestroyed) editor.commands.focus('end')
     })
     return () => cancelAnimationFrame(frame)
-  }, [editor])
+  }, [editor, ready])
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
   const switchMode = (next: NoteMode) => {
-    if (next === modeRef.current) return
-    contentRef.current = next === 'checklist' ? toChecklist(contentRef.current) : toText(contentRef.current)
-    modeRef.current = next
+    if (next === modeRef.current || !ready) return
+    const content = next === 'checklist' ? toChecklist(contentRef.current) : toText(contentRef.current)
+    contentRef.current = content
     focusBody.current = true
-    setMode(next)
-    touch()
+    // Everyone with the note open switches with it.
+    writeBody(doc, next, content, extensionsFor(next, noTag))
+  }
+
+  // Labels and shares need a saved note to hang on.
+  const ensureSaved = () => {
+    if (persisted.current) return
+    dirty.current = true
+    save()
   }
 
   const toggleLabel = (labelId: string, on: boolean) => {
-    // A label needs a saved note to hang on.
-    if (!persisted.current) {
-      dirty.current = true
-      save()
-    }
+    ensureSaved()
     cb.current.onToggleLabel(labelId, on)
   }
 
-  const closePicker = useCallback(() => setPicking(false), [])
+  const toggleShare = (userId: string, on: boolean) => {
+    ensureSaved()
+    cb.current.share?.onToggle(userId, on)
+  }
+
+  const closePicker = useCallback(() => setPicking(null), [])
 
   const selectedLabels = labels.filter(l => labelIds.includes(l.id))
+  const here = peers.map(p => cb.current.nameOf(p.userId) || p.name)
 
   return (
     <dialog
@@ -213,11 +356,8 @@ export function NoteEditor(props: Props) {
               placeholder="Title"
               value={title}
               maxLength={200}
-              onChange={e => {
-                setTitle(e.target.value)
-                titleRef.current = e.target.value
-                touch()
-              }}
+              readOnly={!ready}
+              onChange={e => setText(titleText(doc), e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.shiftKey)) {
                   e.preventDefault()
@@ -226,8 +366,8 @@ export function NoteEditor(props: Props) {
               }}
             />
           )}
-          <EditorContent editor={editor} className={`sheet-body mode-${mode}`} />
-          {(selectedLabels.length > 0 || editedAt) && (
+          <EditorContent editor={editor} className={`sheet-body mode-${mode}${ready ? '' : ' joining'}`} />
+          {(selectedLabels.length > 0 || editedAt || here.length > 0) && (
             <div className="sheet-meta">
               <div className="chips">
                 {selectedLabels.map(l => (
@@ -236,6 +376,12 @@ export function NoteEditor(props: Props) {
                   </button>
                 ))}
               </div>
+              {here.length > 0 && (
+                <span className="here" role="status">
+                  <span className="here-dot" aria-hidden="true" />
+                  {here.join(', ')} {here.length === 1 ? 'is' : 'are'} here
+                </span>
+              )}
               {editedAt && <span className="edited">Edited {editedFormat.format(new Date(editedAt))}</span>}
             </div>
           )}
@@ -293,15 +439,15 @@ export function NoteEditor(props: Props) {
               <div className="anchor">
                 <button
                   type="button"
-                  className={`icon-btn${picking ? ' on' : ''}`}
+                  className={`icon-btn${picking === 'labels' ? ' on' : ''}`}
                   title="Labels"
                   aria-label="Labels"
-                  aria-expanded={picking}
-                  onClick={() => setPicking(p => !p)}
+                  aria-expanded={picking === 'labels'}
+                  onClick={() => setPicking(p => (p === 'labels' ? null : 'labels'))}
                 >
                   <TagIcon size={19} />
                 </button>
-                {picking && (
+                {picking === 'labels' && (
                   <LabelPicker
                     labels={labels}
                     selected={labelIds}
@@ -312,9 +458,36 @@ export function NoteEditor(props: Props) {
                 )}
               </div>
 
-              <button type="button" className="icon-btn" title="Delete" aria-label="Delete note" onClick={() => cb.current.onDelete()}>
-                <TrashIcon size={19} />
-              </button>
+              {share && (
+                <div className="anchor">
+                  <button
+                    type="button"
+                    className={`icon-btn${picking === 'share' || shared ? ' on' : ''}`}
+                    title="Share"
+                    aria-label="Share"
+                    aria-expanded={picking === 'share'}
+                    onClick={() => setPicking(p => (p === 'share' ? null : 'share'))}
+                  >
+                    <PeopleIcon size={20} />
+                  </button>
+                  {picking === 'share' && (
+                    <SharePicker
+                      ownerName={share.ownerName}
+                      friends={share.friends}
+                      selected={share.selected}
+                      onToggle={toggleShare}
+                      onLeave={share.onLeave}
+                      onClose={closePicker}
+                    />
+                  )}
+                </div>
+              )}
+
+              {share?.ownerName === undefined && (
+                <button type="button" className="icon-btn" title="Delete" aria-label="Delete note" onClick={() => cb.current.onDelete()}>
+                  <TrashIcon size={19} />
+                </button>
+              )}
             </>
           )}
 

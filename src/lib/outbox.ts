@@ -1,23 +1,31 @@
 import { loadOutbox, saveOutbox } from './offline'
 import { supabase } from './supabase'
-import type { Label, Note, NoteDraft } from './types'
+import type { Label, Note, NoteDraft, Space } from './types'
 
 /** A write waiting to reach Supabase. Plain data, so it survives on the device until it's sent. */
 export type Op =
   | { kind: 'upsertNote'; row: NoteDraft }
+  /** Saves a note someone else owns: never creates one, and leaves its space alone. */
+  | { kind: 'updateNote'; row: Omit<NoteDraft, 'space'> }
   | { kind: 'deleteNote'; id: string }
-  | { kind: 'insertNote'; row: Omit<Note, 'labelIds'> }
+  | { kind: 'insertNote'; row: Omit<Note, 'labelIds' | 'shares'> }
   | { kind: 'insertNoteLabels'; rows: { note_id: string; label_id: string }[] }
   | { kind: 'insertLabel'; label: Label }
   | { kind: 'updateLabel'; id: string; name: string }
   | { kind: 'deleteLabel'; id: string }
   | { kind: 'addNoteLabel'; noteId: string; labelId: string }
   | { kind: 'removeNoteLabel'; noteId: string; labelId: string }
+  | { kind: 'insertShares'; rows: { note_id: string; user_id: string; space: Space }[] }
+  | { kind: 'removeShare'; noteId: string; userId: string }
 
 function send(op: Op) {
   switch (op.kind) {
     case 'upsertNote':
       return supabase.from('notes').upsert(op.row)
+    case 'updateNote': {
+      const { id, ...fields } = op.row
+      return supabase.from('notes').update(fields).eq('id', id)
+    }
     case 'deleteNote':
       return supabase.from('notes').delete().eq('id', op.id)
     // Inserts ignore duplicates so a retry after a lost reply doesn't fail.
@@ -35,11 +43,21 @@ function send(op: Op) {
       return supabase.from('note_labels').upsert({ note_id: op.noteId, label_id: op.labelId }, { ignoreDuplicates: true })
     case 'removeNoteLabel':
       return supabase.from('note_labels').delete().match({ note_id: op.noteId, label_id: op.labelId })
+    case 'insertShares':
+      return supabase.from('note_shares').upsert(op.rows, { ignoreDuplicates: true })
+    case 'removeShare':
+      return supabase.from('note_shares').delete().match({ note_id: op.noteId, user_id: op.userId })
   }
 }
 
+const isSave = (op: Op) => op.kind === 'upsertNote' || op.kind === 'updateNote'
+
 const noteOf = (op: Op) =>
-  op.kind === 'upsertNote' || op.kind === 'insertNote' ? op.row.id : op.kind === 'deleteNote' ? op.id : null
+  op.kind === 'upsertNote' || op.kind === 'updateNote' || op.kind === 'insertNote'
+    ? op.row.id
+    : op.kind === 'deleteNote'
+      ? op.id
+      : null
 
 // No connection (0), an expired session still waiting to refresh (401), or a server
 // having a moment. Anything else is a real rejection that retrying won't fix.
@@ -125,13 +143,13 @@ export function createOutbox(userId: string, events: OutboxEvents) {
     pushes++
     // Autosave rewrites a note every pause; while it waits, keep only the newest copy.
     // The copy stays where the first one was, ahead of anything that needs the note to exist.
-    const id = op.kind === 'upsertNote' ? op.row.id : null
+    const id = isSave(op) ? noteOf(op) : null
     let replaced = false
     if (id) {
       for (let i = ops.length - 1; i >= 0; i--) {
         const o = ops[i]
         if (noteOf(o) !== id) continue
-        if (o.kind === 'upsertNote' && o !== inFlight) {
+        if (o.kind === op.kind && o !== inFlight) {
           ops[i] = op
           replaced = true
         }
@@ -151,6 +169,8 @@ export function createOutbox(userId: string, events: OutboxEvents) {
     /** Bumps on every write, so a fetch can tell whether it raced one. */
     pushes: () => pushes,
     pending: () => ops.length,
+    /** Something about this note is still on its way, so the device's copy is newer than the server's. */
+    pendingFor: (noteId: string) => ops.some(o => noteOf(o) === noteId),
     dispose: () => window.clearTimeout(retryTimer),
   }
 }

@@ -1,6 +1,6 @@
 import type { User } from '@supabase/supabase-js'
 import { createStore, del, get, set } from 'idb-keyval'
-import type { Label, Note } from './types'
+import type { FriendshipRow, Label, Note } from './types'
 
 // Everything kept on the device so the desk opens, and can be written on, without a signal.
 const db = createStore('onthousels', 'offline')
@@ -8,6 +8,8 @@ const db = createStore('onthousels', 'offline')
 export interface Snapshot {
   notes: Note[]
   labels: Label[]
+  /** Missing from copies saved before friends existed. */
+  friendships?: FriendshipRow[]
 }
 
 export const loadSnapshot = (userId: string) => get<Snapshot>(`snapshot:${userId}`, db)

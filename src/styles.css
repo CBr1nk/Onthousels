@@ -362,6 +362,32 @@ code {
   margin-left: auto;
 }
 
+/* Personal / Work: sits at the right, beside the theme switch */
+.space-switch {
+  flex: none;
+  margin-left: auto;
+}
+
+.space-switch + .icon-btn:last-child {
+  margin-left: 0;
+}
+
+/* A friend request waiting, seen from the closed drawer on a phone */
+.menu-btn {
+  position: relative;
+}
+
+.menu-dot {
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--desk);
+}
+
 /* Offline / still-syncing note in the top bar: a pencilled aside, not an alarm. */
 .sync {
   flex: none;
@@ -498,6 +524,26 @@ code {
   font-size: 0.84rem;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.friends-item {
+  margin-top: auto;
+}
+
+.badge {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.74rem;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.friends-item + .me {
+  margin-top: 0;
 }
 
 .me {
@@ -678,6 +724,16 @@ code {
 .card .chips {
   margin-top: 12px;
   padding-right: 30px;
+}
+
+.chip-shared {
+  gap: 5px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.chip-shared svg {
+  flex: none;
 }
 
 .card-delete {
@@ -937,6 +993,59 @@ h2.sheet-title {
   background-image: var(--check);
 }
 
+/* A shared note, shown as saved while it fetches what a friend may have changed since */
+.sheet-body.joining {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+/* Who else has the note open */
+.here {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.here-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* A friend's caret, with their name hung above it */
+.collab-caret {
+  position: relative;
+  margin: 0 -1px;
+  border-left: 2px solid;
+  border-right: 0;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.collab-caret-label {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  color: #fff;
+  font-family: var(--font-text);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ProseMirror-yjs-selection {
+  opacity: 0.25;
+}
+
 .sheet-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1069,10 +1178,158 @@ h2.sheet-title {
   color: var(--accent);
 }
 
+.popover-item.danger {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.popover-heading,
+.popover-note {
+  margin: 4px 10px 6px;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.popover-heading {
+  letter-spacing: 0.06em;
+  font-variant: small-caps;
+  text-transform: lowercase;
+}
+
 .popover-empty {
   padding: 10px;
   font-size: 0.88rem;
   color: var(--muted);
+}
+
+/* ───────────────────────── Friends ───────────────────────── */
+
+.sheet.friends {
+  width: min(540px, 100%);
+}
+
+.friends .sheet-scroll {
+  padding-bottom: 28px;
+}
+
+.friends-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.friends-lede {
+  margin: 4px 0 22px;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.friend-add {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 14px 18px;
+  align-items: end;
+}
+
+.friend-add .btn-primary {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 4px;
+}
+
+.friend-add .welcome-error,
+.friends-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.friends-hint {
+  color: var(--ink-soft);
+}
+
+.friend-group {
+  margin-top: 14px;
+}
+
+.friend-group .nav-heading {
+  margin: 0;
+  padding-left: 0;
+}
+
+.friend-group .nav-hint {
+  margin-left: 0;
+}
+
+.friend-request {
+  padding: 8px 0;
+}
+
+.friend-request .friend-email {
+  margin: 0 0 6px;
+  font-size: 0.94rem;
+  color: var(--ink);
+}
+
+.friend-request strong {
+  font-weight: 500;
+}
+
+.friend-answer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.friend-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  outline: none;
+}
+
+.friend-name-input:focus {
+  border-bottom-color: var(--accent);
+}
+
+.link-btn.muted {
+  color: var(--muted);
+}
+
+.friend-row {
+  padding-left: 0;
+}
+
+.friend-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.friend-email {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-waiting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  color: var(--ink-soft);
+}
+
+.friend-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 /* ───────────────────────── Floating & toast ───────────────────────── */
@@ -1390,6 +1647,18 @@ h2.sheet-title {
 
   .tool-sep {
     margin: 0 2px;
+  }
+
+  .space-switch button {
+    padding: 0 9px;
+  }
+
+  .friend-add {
+    grid-template-columns: 1fr;
+  }
+
+  .sheet.friends {
+    width: 100%;
   }
 
   /* The picker spans the toolbar instead of hanging off one button */
