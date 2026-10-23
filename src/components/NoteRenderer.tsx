@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { JSONContent } from '@tiptap/react'
+import { withoutBlankEnd } from '../lib/doc'
 import { CheckIcon } from './Icons'
 
 interface Ctx {
@@ -79,8 +80,8 @@ export function NoteRenderer({
   doc: JSONContent
   onToggleTask?: (index: number) => void
 }) {
-  // Trailing empty paragraphs only add blank space on a card.
-  const blocks = [...(doc.content ?? [])]
+  // Trailing empty paragraphs and list items only add blank space on a card.
+  const blocks = [...(withoutBlankEnd(doc, 0).content ?? [])]
   while (blocks.length && blocks[blocks.length - 1].type === 'paragraph' && !blocks[blocks.length - 1].content?.length) {
     blocks.pop()
   }

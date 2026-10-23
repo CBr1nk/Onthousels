@@ -146,10 +146,15 @@ export function buildTasks(flat: FlatTask[]): JSONContent {
 
 const blankTask = (t: FlatTask) => t.blocks.every(b => plainText(b).trim() === '')
 
-/** Drops empty items left at the end of a checklist (always keeping one). Returns the same document if there are none. */
-export function withoutBlankEnd(doc: JSONContent): JSONContent {
+/**
+ * Drops empty items left at the end of a checklist, keeping at least `keep` items (a saved list
+ * keeps one, so it's still a list; a card shows none). Returns the same document if there's
+ * nothing to drop, including for anything that isn't a checklist.
+ */
+export function withoutBlankEnd(doc: JSONContent, keep = 1): JSONContent {
   const flat = flattenTasks(doc)
   let end = flat.length
-  while (end > 1 && blankTask(flat[end - 1])) end--
-  return end === flat.length ? doc : buildTasks(flat.slice(0, end))
+  while (end > keep && blankTask(flat[end - 1])) end--
+  if (end === flat.length) return doc
+  return end ? buildTasks(flat.slice(0, end)) : { type: 'doc', content: [] }
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { withoutBlankEnd } from '../lib/doc'
 import { uuid } from '../lib/id'
 import { keepStorage, loadSnapshot, saveSnapshot, type Snapshot } from '../lib/offline'
 import { createOutbox } from '../lib/outbox'
@@ -234,7 +235,9 @@ export function useNotes(userId: string, onError: (message: string) => void) {
   }, [userId, notes, labels, friendships])
 
   const saveNote = useCallback(
-    (draft: NoteDraft) => {
+    (saved: NoteDraft) => {
+      // A list is never kept with empty items at its end, whichever way it was saved.
+      const draft = saved.mode === 'checklist' ? { ...saved, content: withoutBlankEnd(saved.content) } : saved
       const now = new Date().toISOString()
       const existing = notesRef.current.find(n => n.id === draft.id)
       setNotes(prev => {
